@@ -21,6 +21,7 @@ from PIL import Image
 SHOPS = {
     "giva": "https://www.giva.co",
     "palmonas": "https://palmonas.com",
+    "swashaa": "https://www.swashaa.com",
 }
 
 USER_AGENT = "dyla-takehome-catalogue-builder/0.1 (personal project, jaygautam561@gmail.com)"
@@ -46,16 +47,38 @@ def fetch_all_products(base_url: str) -> list[dict]:
     return products
 
 
+def fetch_product_by_handle(base_url: str, handle: str) -> dict:
+    """Fetch one specific product by its URL handle, instead of paginating the whole catalogue.
+
+    Used when a particular real-world item needs to be in the catalogue (its exact SKU is known
+    from the product page URL) without scraping the vendor's entire listing to reach it — e.g. a
+    stumper item whose product happens to sit near the end of a 1,800+ product catalogue.
+    """
+    session = requests.Session()
+    session.headers["User-Agent"] = USER_AGENT
+    resp = session.get(f"{base_url}/products/{handle}.json", timeout=15)
+    resp.raise_for_status()
+    return resp.json()["product"]
+
+
 def slugify(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:80]
 
 
-def download_and_resize(url: str, dest: Path, session: requests.Session) -> bool:
+def download_and_resize(url: str, dest: Path, session: requests.Session, retries: int = 2) -> bool:
     if dest.exists():
         return True
-    resp = session.get(url, timeout=15)
-    if resp.status_code != 200:
-        return False
+    for attempt in range(retries + 1):
+        try:
+            resp = session.get(url, timeout=30)
+        except requests.exceptions.RequestException:
+            if attempt == retries:
+                return False
+            time.sleep(1.0)
+            continue
+        if resp.status_code != 200:
+            return False
+        break
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_suffix(".tmp")
     tmp.write_bytes(resp.content)
@@ -73,6 +96,7 @@ def main():
     ap.add_argument("--shop", choices=SHOPS.keys(), required=True)
     ap.add_argument("--out", default="data/catalogue")
     ap.add_argument("--limit-products", type=int, default=None, help="cap for a quick test run")
+    ap.add_argument("--handle", default=None, help="fetch one specific product by its URL handle, not the full list")
     args = ap.parse_args()
 
     out_dir = Path(args.out)
@@ -80,24 +104,37 @@ def main():
     csv_path = out_dir / "products.csv"
     base_url = SHOPS[args.shop]
 
-    print(f"Fetching product list from {base_url} ...")
-    products = fetch_all_products(base_url)
-    if args.limit_products:
-        products = products[: args.limit_products]
+    if args.handle:
+        print(f"Fetching single product '{args.handle}' from {base_url} ...")
+        products = [fetch_product_by_handle(base_url, args.handle)]
+    else:
+        print(f"Fetching product list from {base_url} ...")
+        products = fetch_all_products(base_url)
+        if args.limit_products:
+            products = products[: args.limit_products]
     print(f"{len(products)} products found for {args.shop}")
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    write_header = not csv_path.exists()
+    base_fieldnames = [
+        "vendor", "product_id", "sku", "title", "product_type", "handle",
+        "price", "product_url", "image_id", "image_position", "image_source_url", "local_path",
+    ]
+    if csv_path.exists():
+        # groups.py may have already added design_group to an existing file — match its shape
+        # (as a blank field for new rows) rather than writing a shorter row and corrupting the CSV.
+        with open(csv_path) as f:
+            fieldnames = next(csv.reader(f))
+        write_header = False
+    else:
+        fieldnames = base_fieldnames
+        write_header = True
     session = requests.Session()
     session.headers["User-Agent"] = USER_AGENT
 
     with open(csv_path, "a", newline="") as f:
-        writer = csv.writer(f)
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
         if write_header:
-            writer.writerow([
-                "vendor", "product_id", "sku", "title", "product_type", "handle",
-                "price", "product_url", "image_id", "image_position", "image_source_url", "local_path",
-            ])
+            writer.writeheader()
 
         n_images = 0
         for p in products:
@@ -110,11 +147,13 @@ def main():
                 ok = download_and_resize(img["src"], local_path, session)
                 if not ok:
                     continue
-                writer.writerow([
-                    args.shop, p["id"], sku, p["title"], p.get("product_type", ""), p["handle"],
-                    price, product_url, img["id"], img.get("position", ""), img["src"],
-                    str(local_path.relative_to(out_dir)),
-                ])
+                row = {
+                    "vendor": args.shop, "product_id": p["id"], "sku": sku, "title": p["title"],
+                    "product_type": p.get("product_type", ""), "handle": p["handle"], "price": price,
+                    "product_url": product_url, "image_id": img["id"], "image_position": img.get("position", ""),
+                    "image_source_url": img["src"], "local_path": str(local_path.relative_to(out_dir)),
+                }
+                writer.writerow(row)
                 n_images += 1
                 if n_images % 100 == 0:
                     print(f"  ... {n_images} images downloaded")

@@ -1,16 +1,17 @@
 # Status
 
 **Last updated:** 2026-09-14
-**Current phase:** Phase 1, 3, and 4's harness done. Phase 2 (stumper set) redefined: no purchase, no store
-visit, no refusal extension — using 3 home items instead (see `docs/SHOT_LIST.md`, rewritten). Tooling for
-it is ready (`own_items.py`); the shoot itself is still mine to do.
+**Current phase:** Phase 4 has a real first result. Kadda turned out to be from a real brand (Swashaa,
+verified exact SKU) — genuinely catalogue-matched, not self-sourced. Chain and ring are self-sourced. 58 of
+the ~100+ required stumper photos shot and labelled; **still short of the brief's 100-photo minimum.**
 
 ## Next step
 
-Mine: take one clean reference photo of each of 3 home items (gold ring, gold chain, gold kadda), register
-each with `python -m dyla_match.catalogue.own_items`, rebuild both indexes, then shoot ~34 hard-condition
-photos per item (~102 total) per `docs/SHOT_LIST.md` and log into `data/stumper/labels.csv` as I go. Once
-that exists: run `harness.py` for real and write the first `report.md`.
+Mine: get to 100+ photos — easiest path is screenshotting ~42 of the existing 58 photos as displayed on
+screen (creates genuine `<condition>;screenshot` combined-condition rows without new live shooting), send
+them over, and I'll add them to `labels.csv` and rerun the harness. Also worth doing: spot-check my
+condition-tag guesses in `data/stumper/labels.csv` (marked with a note — I inferred them from the photos,
+not from what was actually intended) and correct any that are wrong.
 
 ## Decisions (settled — see `DECISION_LOG.md` for full reasoning)
 
@@ -43,10 +44,13 @@ that exists: run `harness.py` for real and write the first `report.md`.
 ### Phase 2: stumper set
 - [x] Shot list rewritten for 3 zero-cost home items — `docs/SHOT_LIST.md`
 - [x] `own_items.py` built and tested — registers a self-sourced item as a catalogue entry
-- [ ] Clean reference photo + registration for each of the 3 items, then rebuild both indexes
-- [ ] ~102 positive photos (no negatives — refusal dropped)
-- [ ] WhatsApp-recompressed and screenshot variants
-- [ ] `labels.csv` complete (no calib/test split — n=3 is too small to mean anything), frozen
+- [x] Kadda identified as a real Swashaa product ("Ethan Men's Kada", id 7557947424992) — scraped Swashaa
+      (300 products + this exact one), genuinely catalogue-verified, not self-sourced
+- [x] Chain and ring registered self-sourced; both indexes rebuilt over all 7,272 images
+- [x] 58 photos shot and labelled (17 chain, 28 ring, 13 kadda) — **short of the 100+ minimum**
+- [ ] ~42 more photos (screenshot duplicates of existing shots is the fastest path)
+- [ ] Spot-check Claude's condition-tag guesses in `labels.csv` against actual shooting intent
+- [ ] No calib/test split (n=3 items, too small to mean anything) — all `test`, frozen once complete
 
 ### Phase 3: baseline matcher
 - [x] Environment (uv), config, DINOv2 + CLIP embeddings, FAISS index, CLI, per-stage timing
@@ -59,7 +63,16 @@ that exists: run `harness.py` for real and write the first `report.md`.
       `data/stumper/`) — this proves the pipeline runs, not that the matcher works on real hard photos.
       ECE deliberately left out until `calibrate.py` (Phase 5) exists — reporting raw cosine score as a
       calibrated probability would be measuring something that isn't there yet.
-- [ ] Run for real once Phase 2's photos exist; `eval/report.md` generated from that, not faked
+- [x] Ran for real on the 58 photos so far — `eval/report.md` (DINOv2) and `eval/report_clip.md` (CLIP).
+      Provisional (n=58, not yet the full 100+, no calib/test split): DINOv2 top-1 SKU 46.6% [34.3, 59.2],
+      CLIP top-1 SKU 75.9% [63.5, 85.0] — CLIP clearly ahead here, the opposite of `PLAN.md`'s expectation
+      that DINOv2 would win at exact-instance retrieval. Real result, not assumed; needs the full photo set
+      before trusting the gap's size. Worst conditions: `occlusion` (0% DINOv2, 50% CLIP, n=2) and
+      `low_light` (23.1% DINOv2, 76.9% CLIP, n=13). Diagnosed one concrete failure: the kadda's own clean
+      photo doesn't rank in the top 30 for *either* backbone against Swashaa's real studio photo — the
+      correct product isn't even close on raw cosine similarity, consistent with `PLAN.md`'s predicted
+      whole-image weakness (small object, background dominates) before cropping exists.
+- [ ] Re-run once 100+ photos and corrected condition tags are in; revisit backbone choice with real n
 
 ### Phase 5: improvements, each measured
 - [ ] Crop vs whole image
@@ -128,3 +141,12 @@ that exists: run `harness.py` for real and write the first `report.md`.
   ~20 genuine negatives and there's nothing left at zero cost to serve as one. `docs/SHOT_LIST.md` and
   `docs/PLAN.md` rewritten accordingly. Submission now covers the brief's core only, no "take it further"
   piece — named openly rather than gestured at.
+- 2026-09-14: Took 58 photos (chain, ring, kadda) and handed them over. Spotted "SWASHAA" stamped inside
+  the kadda in one photo — a real online brand (swashaa.com, same Shopify-feed setup as Giva/Palmonas).
+  Found the exact matching SKU myself ("Ethan Men's Kada") after Claude's own reverse-image search through
+  Swashaa's catalogue came up empty. Scraped Swashaa (300 products + this specific one) so it's a genuine
+  catalogue match, not self-sourced like the other two. Claude classified all 58 photos by item and guessed
+  condition tags by eye (flagged in `labels.csv` as a guess, not stated intent — still need to check these).
+  Ran the harness for real for the first time: DINOv2 46.6% / CLIP 75.9% top-1 SKU accuracy (n=58, provisional).
+  Still short of the brief's 100-photo minimum — next is getting to 100+, easiest via screenshotting existing
+  photos rather than shooting more live ones.

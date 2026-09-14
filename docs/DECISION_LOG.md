@@ -133,3 +133,31 @@ Format:
   my call to make once the core is running on real numbers.
 - Revisit if: a zero-cost source of genuine negatives turns up later (e.g. more home jewellery not used as
   positives) — refusal could still be added back.
+
+## 2026-09-14: Kadda is a real Swashaa product, not self-sourced
+- Source: mine — noticed "SWASHAA" stamped inside the kadda and gave Claude the exact product URL after
+  its own attempt to find the SKU by eyeballing ~100 Swashaa product photos came up empty.
+- Choice: scraped Swashaa (swashaa.com, same public Shopify `/products.json` setup as Giva/Palmonas) — 300
+  products for general catalogue depth plus this one specific product by URL handle, since it happened to
+  sit near the end of Swashaa's 1,816-product listing and a small `--limit-products` cap wouldn't reach it.
+- Why it matters: the kadda is now a genuinely catalogue-verified positive, not a self-sourced item like
+  the chain and ring — a stronger result than planned, and worth calling out in `DECISIONS.md` as something
+  that improved past the original zero-budget fallback.
+- Bug caught while doing this: `scrape.py` appended new rows without the `design_group` column that
+  `groups.py` had already added to `products.csv`, silently corrupting row shape (12 fields instead of 13)
+  for all newly-scraped rows. Fixed by making the writer detect and match the existing file's header;
+  cleaned up and re-scraped. Also added a retry to `download_and_resize` after a `ReadTimeout` crashed the
+  first Swashaa scrape partway through.
+
+## 2026-09-14: First real evaluation — CLIP beats DINOv2 here, against the plan's expectation
+- Source: measured, not assumed
+- What happened: ran `harness.py` for real on the 58 photos shot so far (not yet the full 100+, no
+  calib/test split yet). DINOv2 top-1 SKU accuracy 46.6% [34.3, 59.2] vs CLIP 75.9% [63.5, 85.0]. `PLAN.md`
+  expected the opposite — DINOv2 favoured for exact-instance retrieval, CLIP expected weaker at "this exact
+  necklace" vs "a gold necklace" in general.
+- Caveat, stated plainly: n=58 across only 3 items, no calibration split — wide CIs, could easily be
+  idiosyncratic to these specific 3 items rather than a general result. Not treating this as settled;
+  re-measuring once the photo set reaches 100+ before it goes in `DECISIONS.md` as a real finding.
+- Diagnosed one concrete failure along the way: the kadda's own "clean" phone photo doesn't rank in the
+  top 30 of either backbone against Swashaa's real studio photo of the same product — consistent with
+  `PLAN.md`'s predicted whole-image weakness (small object, background dominates) ahead of any cropping.
