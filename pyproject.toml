@@ -1,0 +1,31 @@
+[project]
+name = "dyla-match"
+version = "0.1.0"
+description = "Jewellery visual matcher and hard-photo evaluation harness (Dyla take-home, Problem 2)"
+requires-python = ">=3.11"
+dependencies = [
+    "requests>=2.31",
+    "pillow>=10.4",
+]
+
+[project.optional-dependencies]
+# Added incrementally as each phase needs them, so a fresh clone only pulls what it uses so far.
+ml = [
+    "torch>=2.3",
+    "torchvision>=0.18",
+    "faiss-cpu>=1.8",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "transformers>=4.40",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+dyla-match = "dyla_match.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

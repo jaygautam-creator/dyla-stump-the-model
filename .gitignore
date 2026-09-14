@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 .venv/
+*.egg-info/
 
 # Large / regenerated data (README rebuilds these)
 data/catalogue/images/
@@ -11,6 +12,9 @@ data/index/
 
 # macOS
 .DS_Store
+
+# Claude Code session-local state
+.claude/scheduled_tasks.lock
 
 # Brief (kept locally)
 *.pdf

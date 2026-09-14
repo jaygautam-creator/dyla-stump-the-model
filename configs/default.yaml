@@ -1,0 +1,26 @@
+# Swappable pipeline config for the Phase 3 baseline matcher.
+# Every knob here should be changeable without touching code — that's the point of a config file
+# on a project I need to explain and change live.
+
+backbone: dinov2   # default backbone; overridden per-run for the dinov2 vs clip comparison in Phase 4
+
+models:
+  dinov2:
+    hf_id: facebook/dinov2-small
+    embedding_dim: 384
+  clip:
+    hf_id: openai/clip-vit-base-patch32
+    embedding_dim: 512
+
+device: auto        # auto | cpu | mps
+batch_size: 16       # catalogue embedding batch size, watch memory on 8GB
+
+top_k_images: 50     # image-level FAISS candidates before product aggregation
+top_k: 5              # products returned to the user
+
+catalogue:
+  dir: data/catalogue
+  csv: data/catalogue/products.csv
+
+index:
+  dir: data/index
