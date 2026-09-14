@@ -52,7 +52,12 @@ Once photos exist: `harness.py` (wire labels.csv + matcher output into `eval/met
 ### Phase 4: harness
 - [x] Metrics module (`eval/metrics.py`): top-k accuracy, Wilson CI, FAR/FRR (+ curve), ECE — verified
       against hand-computed reference values, not run on real data yet
-- [ ] Paired drop, `harness.py` wiring labels.csv + matcher output to these metrics, `report.md`
+- [x] `harness.py`: labels.csv -> matcher -> metrics -> report.md, incl. per-condition accuracy and
+      paired drop. Wiring verified with catalogue images standing in for photos (never written to
+      `data/stumper/`) — this proves the pipeline runs, not that the matcher works on real hard photos.
+      ECE deliberately left out until `calibrate.py` (Phase 5) exists — reporting raw cosine score as a
+      calibrated probability would be measuring something that isn't there yet.
+- [ ] Run for real once Phase 2's photos exist; `eval/report.md` generated from that, not faked
 
 ### Phase 5: improvements, each measured
 - [ ] Crop vs whole image
@@ -102,5 +107,12 @@ Once photos exist: `harness.py` (wire labels.csv + matcher output into `eval/met
   bins) while still waiting on the physical Phase 2 steps — pure functions, no dependency on real stumper
   data. Checked against hand-computed reference values (e.g. Wilson CI for n=100,k=80 against a worked-by-hand
   calculation, not a misremembered one — my first guess at the reference numbers was wrong and the check
-  caught it, not the formula). `harness.py` (wiring labels.csv + matcher output into these) still needs real
-  photos to be worth writing.
+  caught it, not the formula).
+- 2026-09-14: Wrote `eval/harness.py` (labels.csv -> matcher -> metrics -> report.md), still ahead of Phase
+  2's real photos. Verified the wiring using real catalogue images relabelled as if they were photos —
+  deliberately not written into `data/stumper/`, to keep that path clean for the real frozen test set.
+  Confirmed self-consistent: matcher trivially self-retrieves catalogue images at 100% top-1, report.md
+  renders correctly. Left ECE out for now — no calibrated confidence exists until Phase 5's `calibrate.py`,
+  and reporting raw cosine score as if it were a probability would be measuring something that isn't real.
+  Everything left in Phase 4/5 needs actual stumper photos to be worth building further; that's still the
+  next step, mine to do.
