@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Large / regenerated data (README rebuilds these)
+data/catalogue/images/
+data/index/
+*.faiss
+*.npy
+
+# macOS
+.DS_Store
+
+# Brief (kept locally)
+*.pdf
