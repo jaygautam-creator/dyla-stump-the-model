@@ -1,77 +1,63 @@
-# Phase 2: purchase list, store visit, and shot list
+# Phase 2: shot list (zero-cost, 3 home items)
 
-Drafted 2026-09-14, after Phase 1 (catalogue: 6,350 images, 1,007 products, design groups). Any change
-goes into `DECISION_LOG.md`. This plans the work; it doesn't execute it — buying, visiting the store, and
-shooting are physical steps for me to do.
+Rewritten 2026-09-14 — supersedes the earlier purchase-list version. See `DECISION_LOG.md`, "D1
+superseded — zero-budget stumper set, refusal extension dropped."
 
-## Purchase list — 6 owned items (~₹12,400)
+## The 3 items
 
-Two per category, one Giva + one Palmonas, so the positive set covers both vendors and both a distinctive
-and a plain/generic design per category (a plain solitaire is the harder retrieval case — closer to
-lookalikes than an ornate piece is).
+Gold ring, gold chain, gold kadda — already owned, no receipt, no known brand. Since they can't be
+verified against a scraped catalogue, they're added *as* catalogue items themselves (self-sourced, not
+scraped — disclosed as such in `DECISIONS.md`). The Giva/Palmonas scrape (6,350 images) is untouched and
+still meets the "5,000+ scraped images" requirement on its own.
 
-| # | Vendor | Item | Price | Product URL |
-|---|---|---|---|---|
-| 1 | Giva | Silver Aurora Marquis Ring | ₹1,599 | giva.co/products/silver-aurora-marquis-ring |
-| 2 | Palmonas | Minimal Solitaire 925 Sterling Silver Ring | ₹2,892 | palmonas.com/products/minimal-solitaire-925-sterling-silver-ring-93992 |
-| 3 | Giva | Silver Multi Twinkle Earrings | ₹1,199 | giva.co/products/silver-multi-twinkle-earrings |
-| 4 | Palmonas | Dewdrop Bezel 925 Sterling Silver Studs | ₹1,799 | palmonas.com/products/dewdrop-bezel-925-sterling-silver-studs-97059 |
-| 5 | Giva | Silver Branchful Necklace | ₹1,999 | giva.co/products/silver-branchful-necklace |
-| 6 | Palmonas | Sculptural Knot 925 Sterling Silver Necklace | ₹2,889 | palmonas.com/products/sculptural-knot-925-sterling-silver-necklace-56027 |
+## Step 1 — one clean reference photo per item
 
-Total ≈ ₹12,377 (a bit over the ~₹11k estimate — solitaire/knot designs ran a little higher than the
-category median). Each of these has a `product_id` already in `data/catalogue/products.csv`, so `sku_id`
-and `design_group` for the labelled photos come straight from there.
+For each of the 3 items: a plain background, good even light, the item laid flat or on a neutral surface,
+in focus, filling most of the frame. This is that item's entire catalogue entry — there's no second angle
+or on-model shot the way scraped products have, so get this one right.
 
-## Store visit — lookalike negatives, not more positives
+Register each with:
 
-D1 originally framed the store visit as "more items + negatives," but on reflection it should be **negatives
-only**: CaratLane/Tanishq/BlueStone are different retailers, not in the Giva/Palmonas catalogue, so anything
-photographed there is by definition not-in-catalogue — exactly what a lookalike negative needs to be. Trying
-to also use it for positives would mean owning nothing to re-shoot under hard conditions later.
+```
+python -m dyla_match.catalogue.own_items --title "Gold Ring" --category ring --photo path/to/clean_ring.jpg
+python -m dyla_match.catalogue.own_items --title "Gold Chain" --category chain --photo path/to/clean_chain.jpg
+python -m dyla_match.catalogue.own_items --title "Gold Kadda" --category bracelet --photo path/to/clean_kadda.jpg
+```
 
-- Target: ~20 negative photos from ~12–15 pieces, one visit.
-- Mirror the purchased categories — rings, stud/drop earrings, pendant necklaces — so negatives are
-  genuine style lookalikes (plausible "do you have this?" candidates), not random jewellery.
-- Per piece: 1 clean photo, plus a second under whatever condition the store setting gives for free
-  (glass-case reflection, display lighting, odd angle reaching around other stock) — no need to stage more,
-  the environment does it.
-- Ask staff before photographing (per D1's revisit clause: if refused, fall back to a different online-only
-  brand's catalogue images as the negative source instead).
-- Labels: `sku_id` and `design_group` empty, `in_catalogue = false`.
+This appends each to `data/catalogue/products.csv` with `vendor=own`, resizes and stores the image
+alongside the scraped ones, and assigns it its own `design_group` (trivially itself — no variants to merge).
+Rebuild both FAISS indexes afterwards (`dyla-match build-index`) so the 3 new items are searchable.
 
-## Shot list per owned item (~16–18 photos/item → 100+ total)
+## Step 2 — stumper photos: ~34 per item, 100+ total
 
-Condition tags from `docs/PLAN.md`'s `labels.csv` schema: `clean, low_light, odd_angle, occlusion, clutter,
-motion_blur, reflection, hand_wrist, worn, whatsapp, screenshot`.
+Same condition tags as before: `clean, low_light, odd_angle, occlusion, clutter, motion_blur, reflection,
+hand_wrist, worn, whatsapp, screenshot`. `hand_wrist` fits the ring; `worn` fits the chain (neck) and kadda
+(wrist).
 
-`hand_wrist` applies to the two rings; `worn` applies to earrings and necklaces (on ear / on neck). Per item:
+Per item, since there's no second item in the category to split load with:
 
-1. **Live shots** (physically staged, ~9 per item): `clean`, `low_light`, `odd_angle`, `occlusion`,
-   `clutter`, `motion_blur`, `reflection`, plus `hand_wrist` (rings) or `worn` (earrings/necklaces), plus one
-   repeat of a harder condition with a different instance (e.g. a second `occlusion` shot — cloth instead of
-   a finger — or a second `odd_angle`).
-2. **Processed duplicates** (no new staging, ~7–9 per item): send a handful of the live photos to myself on
-   WhatsApp and re-save (`whatsapp` condition, combined with whatever the source photo already had, e.g.
-   `clean;whatsapp` or `occlusion;whatsapp`), and screenshot a handful as displayed on-screen (`screenshot`,
-   same combination logic). This is the cheapest way to get combined-condition photos and directly serves
-   the "confounding" point in `PLAN.md` — most real hard photos aren't single-condition.
+1. **Live shots** (~10): `clean` (can reuse the Step 1 photo, or take a second one — either is fine, it's
+   just another labelled photo now, not the catalogue entry), `low_light`, `odd_angle` ×2 (two different
+   angles), `occlusion` ×2 (finger, then cloth), `clutter`, `motion_blur`, `reflection`, plus `hand_wrist`
+   or `worn`.
+2. **Processed duplicates** (~24): WhatsApp a good chunk of the live shots to yourself and re-save
+   (`whatsapp`, combined with the source condition, e.g. `occlusion;whatsapp`), and screenshot the rest as
+   displayed on-screen (`screenshot`, same combination logic). This is most of the volume here — 3 items
+   can't carry 100+ live-staged shots without becoming repetitive, but combined-condition photos from
+   processing are realistic (a real hard photo often already has more than one condition) and cheap to
+   produce.
 
-This lands each item around 16–18 labelled photos, 6 items ≈ 100–108 total, without needing more purchases
-or more live staging than the ~9 base shots.
+~34/item × 3 = ~102 total. Log each into `data/stumper/labels.csv` as you go.
 
-## Calibration / test split (by item, frozen before improvement work)
+## No negatives, no refusal
 
-Small n — flag this as a stumper-set weakness in `DECISIONS.md`, not something to paper over.
+Dropped — see `DECISION_LOG.md`. There's nothing left at zero cost to serve as genuine not-in-catalogue
+items once the 3 home pieces became positives. `in_catalogue` is `true` for every row; the refusal-specific
+columns/metrics (FAR/FRR) don't get real numbers this round.
 
-- **Positives:** 2 items → `calib` (one ring, one necklace — pick the plainer design of each pair so
-  calibration isn't fit on the easiest cases), 4 items → `test`.
-- **Negatives:** roughly 30/70 by item — ~4 items' worth → `calib`, ~8–11 items' worth → `test`.
+## Calibration / test split
 
-## Open items before shooting
-
-- Exact CaratLane/Tanishq/BlueStone branch and date — mine to schedule.
-- Confirm staff will allow photography before relying on the store visit; if not, fall back per D1.
-- Once purchases arrive: shoot in the order clean → live hard conditions → process whatsapp/screenshot
-  duplicates, and log each item's photos into `data/stumper/labels.csv` as they're taken, not in one batch
-  at the end.
+Only 3 items — too few to split by item and still calibrate anything meaningful. Recommendation: **no
+calib/test split this round**, all 3 items go to `test`, and this is named as a real limitation in
+`DECISIONS.md` rather than forcing a split that wouldn't mean anything with n=3. (No calibration work is
+needed anyway now that refusal — the thing that used the calibration split — is dropped.)

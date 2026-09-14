@@ -1,23 +1,24 @@
 # Status
 
 **Last updated:** 2026-09-14
-**Current phase:** Phase 1 and Phase 3 done. Phase 4's metrics module written and self-checked (no real data
-yet). Phase 2 (stumper set) still needs the physical purchase/shoot, which only I can do — everything else
-is blocked on it.
+**Current phase:** Phase 1, 3, and 4's harness done. Phase 2 (stumper set) redefined: no purchase, no store
+visit, no refusal extension — using 3 home items instead (see `docs/SHOT_LIST.md`, rewritten). Tooling for
+it is ready (`own_items.py`); the shoot itself is still mine to do.
 
 ## Next step
 
-Mine: buy the 6 items in `docs/SHOT_LIST.md` (~₹12,400), do the store visit for negatives, shoot and label.
-Once photos exist: `harness.py` (wire labels.csv + matcher output into `eval/metrics.py`) and the first
-`report.md` — measuring DINOv2 vs CLIP on the real stumper set rather than eyeballing self-retrieval.
+Mine: take one clean reference photo of each of 3 home items (gold ring, gold chain, gold kadda), register
+each with `python -m dyla_match.catalogue.own_items`, rebuild both indexes, then shoot ~34 hard-condition
+photos per item (~102 total) per `docs/SHOT_LIST.md` and log into `data/stumper/labels.csv` as I go. Once
+that exists: run `harness.py` for real and write the first `report.md`.
 
 ## Decisions (settled — see `DECISION_LOG.md` for full reasoning)
 
 | # | Decision | Choice |
 |---|---|---|
-| D1 | Brand and photo access | Mix: buy a handful of Giva/Palmonas pieces for controlled paired shots + a store visit (CaratLane/Tanishq/BlueStone) for more items and lookalike negatives |
+| D1 | Brand and photo access | Superseded 2026-09-14 — zero-budget: 3 home items self-added as catalogue entries, no purchase, no store visit |
 | D2 | Time available | Full 12–15 h budget, no scope cut for now |
-| D3 | Extension and approach | Refusal, with the two-stage retrieval pipeline in `PLAN.md` |
+| D3 | Extension and approach | Refusal — dropped 2026-09-14 (no zero-cost negatives once D1 changed); two-stage retrieval pipeline in `PLAN.md` stands |
 | D4 | Interface | CLI only for the core; small demo only if time remains |
 
 ## Checklist
@@ -40,11 +41,12 @@ Once photos exist: `harness.py` (wire labels.csv + matcher output into `eval/met
       `products.csv`.
 
 ### Phase 2: stumper set
-- [x] Shot list: items, conditions, clean pairs — `docs/SHOT_LIST.md`
-- [ ] Buy the 6 items, do the store visit for negatives
-- [ ] 100+ positive photos, ~20 lookalike negatives
+- [x] Shot list rewritten for 3 zero-cost home items — `docs/SHOT_LIST.md`
+- [x] `own_items.py` built and tested — registers a self-sourced item as a catalogue entry
+- [ ] Clean reference photo + registration for each of the 3 items, then rebuild both indexes
+- [ ] ~102 positive photos (no negatives — refusal dropped)
 - [ ] WhatsApp-recompressed and screenshot variants
-- [ ] `labels.csv` complete, calib/test split by item, frozen
+- [ ] `labels.csv` complete (no calib/test split — n=3 is too small to mean anything), frozen
 
 ### Phase 3: baseline matcher
 - [x] Environment (uv), config, DINOv2 + CLIP embeddings, FAISS index, CLI, per-stage timing
@@ -116,3 +118,13 @@ Once photos exist: `harness.py` (wire labels.csv + matcher output into `eval/met
   and reporting raw cosine score as if it were a probability would be measuring something that isn't real.
   Everything left in Phase 4/5 needs actual stumper photos to be worth building further; that's still the
   next step, mine to do.
+- 2026-09-14: Overruled my own D1/D3 after pushing back twice on the ₹12,400 purchase — no budget for it.
+  Real zero-cost pieces exist at home (gold ring, chain, kadda) but with no receipt or known brand, so they
+  can't be matched against a scraped catalogue. Rather than fake the "genuinely in your catalogue"
+  requirement (using catalogue images or other people's photos as stand-ins — considered and rejected: it's
+  detectable, defeats the point of the exercise, and is exactly what the brief's grading criteria call out),
+  the fix is to add these 3 items as catalogue entries themselves (self-sourced, disclosed as such, not
+  passed off as scraped). Built and tested `own_items.py` for this. Refusal extension dropped — it needed
+  ~20 genuine negatives and there's nothing left at zero cost to serve as one. `docs/SHOT_LIST.md` and
+  `docs/PLAN.md` rewritten accordingly. Submission now covers the brief's core only, no "take it further"
+  piece — named openly rather than gestured at.

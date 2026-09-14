@@ -62,20 +62,18 @@ Why each stage:
    - Worn (ear, neck, wrist) vs held in a hand.
 6. **Latency per stage** (detector, embedding, search, verification), p50 and p95 on the M2 CPU.
 
-## Refusal (the extension)
+## Extension: dropped, not replaced yet
 
-- **Start with the obvious version:** refuse when the top-1 cosine score is below a threshold. My expectation is
-  that lookalike pieces score as high as real matches and no threshold separates them. I'll show the score
-  distributions and ROC to check that.
-- **Replacement:** verification inliers + margin + score, calibrated to a probability.
-- **Negatives:** about 20 lookalike pieces that aren't in the catalogue, not random objects.
-- **Protocol:** threshold and calibration fit on the calibration split only; false accept and false reject rates
-  reported on the held-out test split, with the full trade-off curve.
-- **Showing evidence:** draw the matched keypoints between the photo and the catalogue image.
-- **Why it matters for a jewellery retailer:** a confident wrong "yes, we have this" on WhatsApp costs a sale and
-  trust.
-- **Known risk:** polished gold and stones move their highlights with the angle, so keypoints are unstable and
-  verification may reject true matches. I'll measure how often.
+Refusal was the original plan (see `DECISION_LOG.md`, 2026-09-14 "Refusal (the extension)" and the later
+entry that supersedes it). It needed ~20 lookalike pieces genuinely outside the catalogue. Once the stumper
+set became 3 zero-cost home pieces (ring, chain, kadda) added *as* catalogue items, there was nothing left
+at zero cost to serve as negatives — the home pieces became positives instead. Rather than half-build
+refusal with no real negatives to test it against, it's dropped. This submission covers the brief's core
+(matcher + stumper) without a "take it further" piece, named openly rather than gestured at.
+
+A zero-cost replacement extension (e.g. scaling the catalogue further, multi-item detection, or automating
+hard-case generation instead of only hand-shooting them) is still open — decide once the core is running on
+real numbers, not before.
 
 ## Alternatives and why not (for now)
 
@@ -98,13 +96,12 @@ dyla/
 ├── src/dyla_match/
 │   ├── catalogue/
 │   │   ├── scrape.py         # polite scraper → images + products.csv with source URLs
-│   │   └── groups.py         # near-duplicate listings → design_group
+│   │   ├── groups.py         # near-duplicate listings → design_group
+│   │   └── own_items.py      # register a zero-cost self-sourced item (see below) as a catalogue entry
 │   ├── localise.py           # detector + crop
 │   ├── embed.py              # dinov2 / clip / siglip
 │   ├── index.py              # FAISS build / add / search, product-level aggregation
-│   ├── verify.py             # local matching + geometric check
-│   ├── calibrate.py          # confidence model and refusal threshold
-│   ├── matcher.py            # photo → top-5 + confidence | NOT_IN_CATALOGUE, per-stage timing
+│   ├── matcher.py            # photo → top-5 + score, per-stage timing (no refusal — dropped, see PLAN)
 │   └── cli.py                # match, build-index, eval
 ├── eval/
 │   ├── harness.py

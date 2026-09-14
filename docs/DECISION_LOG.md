@@ -112,3 +112,24 @@ Format:
   purchased categories (rings, earrings, necklaces).
 - Revisit if: staff refuse photography — fall back to a different online-only brand's catalogue images as
   the negative source (already noted as D1's fallback).
+
+## 2026-09-14: D1 superseded — zero-budget stumper set, refusal extension dropped
+- Source: mine, overruling my own earlier D1 (buy + store visit) after I pushed back twice on cost;
+  Claude's proposed alternatives (buy fewer items, buy-and-return, borrow) were all declined.
+- What changed: no purchase at all. 3 home pieces (gold ring, gold chain, gold kadda) — no receipts, no
+  known brand, no way to verify them against a scraped catalogue — become the entire stumper set instead.
+- Choice: add these 3 pieces as new catalogue entries themselves, self-sourced rather than scraped (one
+  clean reference photo each, taken by me, standing in for what a scraped studio photo would be). The
+  6,350-image Giva/Palmonas scrape is untouched and still satisfies the "5,000+ scraped images" requirement
+  on its own; these 3 items sit on top of it as additional, undeniably-genuine SKUs. Disclosed as self-sourced
+  in `DECISIONS.md`, not passed off as scraped.
+- Refusal extension (the earlier D3) is dropped: it needs ~20 items genuinely not in the catalogue, and
+  there's nothing left at zero cost to serve as negatives (the 3 home pieces are now positives). Falling
+  back to the brief's core (matcher + stumper, no "take it further") rather than a half-built refusal with
+  no negatives to test it against.
+- Trade-off accepted, named openly: only 3 positive items (vs. the original 6), no category diversity beyond
+  ring/chain/kadda, no refusal/false-accept-rate result. Whether to pick a different, zero-cost "take it
+  further" extension (e.g. scaling the catalogue further, or automating hard-case generation) is still open —
+  my call to make once the core is running on real numbers.
+- Revisit if: a zero-cost source of genuine negatives turns up later (e.g. more home jewellery not used as
+  positives) — refusal could still be added back.
