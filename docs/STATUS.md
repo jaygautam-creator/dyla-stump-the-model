@@ -1,15 +1,15 @@
 # Status
 
 **Last updated:** 2026-09-14
-**Current phase:** Phase 1 done. Phase 3 baseline matcher built and working end-to-end (whole-image only, no
-crop/verify/refusal yet — those are Phase 5). Phase 2 (stumper set) still needs the physical purchase/shoot,
-which only I can do.
+**Current phase:** Phase 1 and Phase 3 done. Phase 4's metrics module written and self-checked (no real data
+yet). Phase 2 (stumper set) still needs the physical purchase/shoot, which only I can do — everything else
+is blocked on it.
 
 ## Next step
 
 Mine: buy the 6 items in `docs/SHOT_LIST.md` (~₹12,400), do the store visit for negatives, shoot and label.
-Once photos exist: Phase 4, the eval harness and first `report.md` (top-1/5 SKU + design, Wilson CI, FAR/FRR,
-ECE, latency) — measuring DINOv2 vs CLIP on the real stumper set rather than eyeballing self-retrieval.
+Once photos exist: `harness.py` (wire labels.csv + matcher output into `eval/metrics.py`) and the first
+`report.md` — measuring DINOv2 vs CLIP on the real stumper set rather than eyeballing self-retrieval.
 
 ## Decisions (settled — see `DECISION_LOG.md` for full reasoning)
 
@@ -50,7 +50,9 @@ ECE, latency) — measuring DINOv2 vs CLIP on the real stumper set rather than e
 - [x] Environment (uv), config, DINOv2 + CLIP embeddings, FAISS index, CLI, per-stage timing
 
 ### Phase 4: harness
-- [ ] Metrics (SKU/design top-1/5, Wilson CI, paired drop, FAR/FRR, ECE), `report.md`
+- [x] Metrics module (`eval/metrics.py`): top-k accuracy, Wilson CI, FAR/FRR (+ curve), ECE — verified
+      against hand-computed reference values, not run on real data yet
+- [ ] Paired drop, `harness.py` wiring labels.csv + matcher output to these metrics, `report.md`
 
 ### Phase 5: improvements, each measured
 - [ ] Crop vs whole image
@@ -96,3 +98,9 @@ ECE, latency) — measuring DINOv2 vs CLIP on the real stumper set rather than e
   ~56s on the M2's MPS backend). Sanity check only so far: matching a catalogue image against its own index
   retrieves itself top-1 at score 1.0 for both backbones — real accuracy numbers need the stumper photos
   (Phase 4), not this.
+- 2026-09-14: Wrote `eval/metrics.py` (top-k accuracy, Wilson CI, FAR/FRR + curve, ECE with reliability
+  bins) while still waiting on the physical Phase 2 steps — pure functions, no dependency on real stumper
+  data. Checked against hand-computed reference values (e.g. Wilson CI for n=100,k=80 against a worked-by-hand
+  calculation, not a misremembered one — my first guess at the reference numbers was wrong and the check
+  caught it, not the formula). `harness.py` (wiring labels.csv + matcher output into these) still needs real
+  photos to be worth writing.
