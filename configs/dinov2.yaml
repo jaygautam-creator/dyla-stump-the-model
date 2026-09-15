@@ -1,0 +1,19 @@
+backbone: dinov2
+models:
+  dinov2:
+    hf_id: facebook/dinov2-small
+    embedding_dim: 384
+  clip:
+    hf_id: openai/clip-vit-base-patch32
+    embedding_dim: 512
+device: auto
+batch_size: 16
+top_k_images: 50
+top_k: 5
+catalogue:
+  dir: data/catalogue
+  csv: data/catalogue/products.csv
+preprocess:
+  object_crop: false
+index:
+  dir: data/index

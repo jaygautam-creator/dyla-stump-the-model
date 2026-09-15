@@ -12,6 +12,9 @@ COPY src/ ./src/
 COPY scripts/ ./scripts/
 COPY configs/ ./configs/
 COPY data/catalogue/products.csv ./data/catalogue/products.csv
+# Self-sourced items have no image_source_url (nothing to scrape them from) and are committed instead --
+# scripts/hydrate_catalogue_images.py can't fetch these, they must be copied directly.
+COPY data/catalogue/images/own_*.jpg ./data/catalogue/images/
 COPY backend/ ./backend/
 
 RUN pip install --no-cache-dir -e ".[ml,api]"

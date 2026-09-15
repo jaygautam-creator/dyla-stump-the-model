@@ -18,6 +18,8 @@ from dyla_match.preprocess import object_crop
 def pick_device(requested: str = "auto") -> str:
     if requested != "auto":
         return requested
+    if torch.cuda.is_available():
+        return "cuda"
     if torch.backends.mps.is_available():
         return "mps"
     return "cpu"
@@ -53,8 +55,12 @@ class Embedder:
         inputs = self.processor(images=images, return_tensors="pt").to(self.device)
         if self.backbone == "clip":
             # transformers>=5's get_image_features returns the vision tower's output object, with the
-            # projected embedding in .pooler_output — not a bare tensor.
-            feats = self.model.get_image_features(**inputs).pooler_output
+            # projected embedding in .pooler_output; transformers 4.x returns a bare tensor. pyproject.toml
+            # only pins ">=4.40", so a clean install could resolve either -- handle both rather than
+            # assume the version installed in this dev environment (flagged by an independent audit,
+            # 2026-09-15).
+            out = self.model.get_image_features(**inputs)
+            feats = out.pooler_output if hasattr(out, "pooler_output") else out
         else:
             feats = self.model(**inputs).last_hidden_state[:, 0]  # CLS token
         feats = feats.float().cpu().numpy()

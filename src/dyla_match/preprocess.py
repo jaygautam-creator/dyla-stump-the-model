@@ -13,27 +13,40 @@ import numpy as np
 from PIL import Image
 
 
-def _largest_dense_run(density: np.ndarray, frac_of_max: float = 0.3) -> tuple[int, int]:
-    """Largest contiguous stretch where a 1-D density profile stays above a fraction of its own peak.
+def _dense_extent(density: np.ndarray, frac_of_max: float = 0.3, min_run_frac: float = 0.02) -> tuple[int, int]:
+    """Union bounding extent of every run where a 1-D density profile clears a fraction of its peak.
 
-    A plain min/max over every foreground pixel's coordinates breaks badly on a phone photo with
-    scattered background noise (shadows, dust, a stray dark patch far from the item) -- a handful of
-    outlier pixels near a far corner blow the bounding box out to nearly the whole frame. This is the
-    axis-aligned stand-in for "find the main connected blob" without pulling in scipy for one function.
+    A plain min/max over every foreground pixel's coordinates breaks on scattered background noise
+    (a handful of outlier pixels near a far corner blow the bbox out to nearly the whole frame) -- fixed
+    by only counting *runs*, not individual pixels. But taking just the single *largest* run (the first
+    version of this function) breaks differently on annular jewellery (rings, bangles, hoop earrings):
+    the hollow centre makes the density profile dip in the middle, so "largest run" picks one rim and
+    discards the other, bisecting the item into a degenerate sliver (found via an independent audit,
+    2026-09-15, see docs/ANTIGRAVITY_AUDIT.md -- a ring catalogue image cropped to 203x132 as a plain
+    bbox but a bangle image cropped to 56x269 once it had a real hollow centre). Taking the union extent
+    of every run that clears `min_run_frac` (filtering short noise blips, not the whole rim) spans the
+    full item including its hollow centre.
     """
+    n = len(density)
     threshold = density.max() * frac_of_max
+    min_run = max(1, int(n * min_run_frac))
     above = density > threshold
-    best_start = best_len = cur_start = cur_len = 0
+    runs = []
+    cur_start = cur_len = 0
     for i, v in enumerate(above):
         if v:
             if cur_len == 0:
                 cur_start = i
             cur_len += 1
-            if cur_len > best_len:
-                best_len, best_start = cur_len, cur_start
         else:
+            if cur_len >= min_run:
+                runs.append((cur_start, cur_start + cur_len))
             cur_len = 0
-    return best_start, best_start + best_len
+    if cur_len >= min_run:
+        runs.append((cur_start, cur_start + cur_len))
+    if not runs:
+        return 0, 0
+    return min(r[0] for r in runs), max(r[1] for r in runs)
 
 
 def object_crop(image: Image.Image, pad_frac: float = 0.12, min_frac: float = 0.015, max_frac: float = 0.92) -> Image.Image:
@@ -53,8 +66,8 @@ def object_crop(image: Image.Image, pad_frac: float = 0.12, min_frac: float = 0.
     if frac < min_frac or frac > max_frac:
         return image
 
-    y0, y1 = _largest_dense_run(mask.mean(axis=1))
-    x0, x1 = _largest_dense_run(mask.mean(axis=0))
+    y0, y1 = _dense_extent(mask.mean(axis=1))
+    x0, x1 = _dense_extent(mask.mean(axis=0))
     min_side = 20  # guards against a degenerate few-pixel-wide crop on a near-uniform or noisy image
     if y1 - y0 < min_side or x1 - x0 < min_side:
         return image

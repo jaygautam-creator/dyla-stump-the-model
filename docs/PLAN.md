@@ -10,19 +10,24 @@ Written down before any UI code exists, per instruction — nothing here should 
 **Sequencing (my instruction, 2026-09-15):** model accuracy work first, this plan second, build/deploy
 last — not started until told to.
 
-**Recommended stack** (Claude's recommendation; final call is mine):
-- **Backend:** FastAPI wrapping the existing `Matcher`/`verify_rerank` pipeline, deployed on **Render**
-  as a persistent web service (not a serverless function). Reasoning: CLIP + torch + FAISS + the crop/
-  rerank logic need a warm, in-memory model and a real filesystem for the catalogue index — a poor fit
-  for Vercel/Cloudflare's serverless function limits (bundle size, cold-start, execution time). Render
-  runs a normal long-lived process, so the model loads once and stays warm.
-  - **Cost flag:** Render's free web-service tier (≈512MB RAM, spins down when idle) is very likely too
-    small for CLIP + torch loaded in memory, and spin-down means a slow first request after idle time.
-    A paid instance (roughly $7–25/month depending on tier) is the realistic option — flagging this now
-    since it's a real recurring cost, not a one-time thing, before anything gets provisioned.
-- **Frontend:** Next.js on **Vercel** — Vercel is built for this, free tier is generous for a low-traffic
-  demo, and it's the natural place for the "modern, premium, jewellery-aesthetic" UI itself.
-- **API contract (draft):** `POST /match` with a multipart image upload → JSON `{results: [{vendor,
+**Recommended stack, revised 2026-09-15 after "we can't buy any plan"** (Claude's recommendation; final
+call is mine) — zero recurring cost, no card required anywhere:
+- **Backend:** FastAPI wrapping the matcher, deployed on **Hugging Face Spaces (Docker SDK, free CPU
+  tier)**. Originally recommended Render, but Render's free web-service tier (~512MB RAM) can't hold
+  CLIP+torch without OOM-crashing, and a paid tier is off the table. HF Spaces' free CPU tier gives 16GB
+  RAM, no credit card, and takes a plain Dockerfile directly — `backend/Dockerfile` reused as-is via
+  `scripts/deploy_hf_space.sh`. Trade-off versus a paid host: still sleeps after inactivity, so the
+  first request after idle time is slow (model reload) — acceptable for a take-home demo, not for real
+  production traffic.
+  - Google Cloud Run's free tier was considered and rejected for this: technically capable, but Google
+    requires a billing account on file even for free-tier usage, which fails the "no card" constraint
+    even though it wouldn't actually charge anything within the free allowance.
+  - Cloudflare Workers was considered and rejected: doesn't run PyTorch at all. Using it would mean
+    re-architecting onto Cloudflare's own hosted CLIP model (different embedding space, would need
+    re-embedding the whole catalogue and re-measuring every number in `DECISIONS.md` from scratch) —
+    too large a change for what this is.
+- **Frontend:** Next.js on **Vercel**, free Hobby tier, no card — unchanged from the original plan.
+- **API contract:** `POST /match` with a multipart image upload → JSON `{results: [{vendor,
   product_id, title, score, image_url}], timings}`. Backend serves catalogue thumbnails directly (they're
   already resized to ≤512px) so the frontend never needs its own copy of the 180MB catalogue.
 
@@ -31,11 +36,12 @@ jewellery-appropriate palette (warm ivory/cream/blush neutrals, soft gold/champa
 generic SaaS-blue dashboard); a bit of restrained modern elegance rather than maximalist. Core flow:
 upload/drop a phone photo → loading state → top-5 results as photo cards with product image, title,
 vendor, and confidence, ranked by score. Should read as a boutique product-recognition tool, not a
-raw ML demo.
+raw ML demo. Built in `frontend/`, verified building and serving locally.
 
-**Open decisions still mine to make when we get here:** exact Render plan/tier (cost vs RAM headroom),
-whether the frontend also shows the "not in catalogue" / low-confidence case explicitly, whether to
-password-gate the deployed demo (it's a take-home submission, not meant for public traffic).
+**Open decisions still mine to make when we get here:** whether the frontend also shows the "not in
+catalogue" / low-confidence case explicitly, whether to password-gate the deployed demo (it's a
+take-home submission, not meant for public traffic), whether the free tier's cold-start latency is
+acceptable to leave as-is or needs a "waking up" loading state in the frontend.
 
 ## What I'm aiming for
 

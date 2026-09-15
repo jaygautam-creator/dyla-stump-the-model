@@ -36,7 +36,11 @@ export default function Home() {
     (files: FileList | null) => {
       const file = files?.[0];
       if (!file) return;
-      if (!file.type.startsWith("image/")) {
+      // iOS Safari often reports an empty file.type for photos picked from the camera roll -- fall
+      // back to checking the extension rather than rejecting a genuine photo outright.
+      const looksLikeImage =
+        file.type.startsWith("image/") || /\.(jpe?g|png|webp|heic|heif)$/i.test(file.name);
+      if (!looksLikeImage) {
         setError("Please choose an image file.");
         setStatus("error");
         return;
@@ -79,7 +83,17 @@ export default function Home() {
             onFile(e.dataTransfer.files);
           }}
           onClick={() => inputRef.current?.click()}
+          role="button"
+          tabIndex={0}
+          aria-label="Upload a photo of a piece of jewellery"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              inputRef.current?.click();
+            }
+          }}
           className={`group cursor-pointer rounded-2xl border-2 border-dashed transition-colors
+            focus-visible:outline focus-visible:outline-2 focus-visible:outline-champagne-dark focus-visible:outline-offset-2
             ${dragActive ? "border-champagne bg-blush/40" : "border-line bg-white/60 hover:border-champagne/70"}
             p-10 sm:p-14 flex flex-col items-center text-center gap-4`}
         >
@@ -87,7 +101,9 @@ export default function Home() {
             ref={inputRef}
             type="file"
             accept="image/*"
-            className="hidden"
+            aria-hidden="true"
+            tabIndex={-1}
+            className="sr-only"
             onChange={(e) => onFile(e.target.files)}
           />
           {preview ? (

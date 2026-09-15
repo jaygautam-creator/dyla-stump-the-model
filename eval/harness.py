@@ -13,6 +13,7 @@ against real catalogue images relabelled as if they were photos — that only pr
 not that the matcher works on real hard photos; it is never written into `data/stumper/`.
 """
 import os
+import re
 from pathlib import Path
 
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
@@ -81,7 +82,7 @@ def summarize(matches: pd.DataFrame, k: int = 5) -> dict:
     per_condition = {}
     all_conditions = sorted(set(c for cs in matches["conditions"] for c in cs.split(";") if c))
     for cond in all_conditions:
-        cond_positives = positives[positives["conditions"].str.contains(rf"(?:^|;){cond}(?:;|$)")]
+        cond_positives = positives[positives["conditions"].str.contains(rf"(?:^|;){re.escape(cond)}(?:;|$)")]
         cond_hits = [hits(r, "sku_id", "top_sku_ids", 1) for _, r in cond_positives.iterrows()]
         per_condition[cond] = _hit_rate_with_ci(cond_hits)
 

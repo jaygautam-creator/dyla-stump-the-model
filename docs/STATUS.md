@@ -3,15 +3,22 @@
 **Last updated:** 2026-09-15
 **Current phase:** Phase 5 done and measured, submission code/docs pushed to GitHub. Photo count is past
 the brief's 100-photo minimum (58 real + 45 synthetic, reported separately everywhere). CLIP is the
-measured winner over DINOv2. **Every Phase 5 improvement tried (crop-to-object, twice; equal-weight
+measured winner over DINOv2. **Every Phase 5 improvement tried (crop-to-object, three times; equal-weight
 ensemble; verification re-rank) measured worse than the Phase 4 baseline and was rejected** — the shipped
 matcher is plain whole-image CLIP cosine retrieval, no preprocessing, no re-ranking. **Real finding, still
 unfixed:** the one item that's a genuine external catalogue match (the Swashaa kada) scores 0% top-1
-recall in every configuration tried, including the rejected fixes. The 75.9% headline number is carried
-entirely by the two self-sourced items. Full detail in `DECISIONS.md`.
+recall in every configuration tried. Corrected diagnosis (2026-09-15, via an independent audit, see
+below): it's at least as much a background/domain-match confound favouring the self-sourced items as it
+is plain-jewellery similarity. Full detail in `DECISIONS.md`.
 
-Now building toward: a deployed web demo (not yet started — requirements captured in `docs/PLAN.md`
-"Phase 6", stack recommendation is Next.js on Vercel + FastAPI on Render, not yet confirmed by me).
+An independent audit (Anti-Gravity CLI / Gemini) ran against the full repo 2026-09-15 —
+`docs/ANTIGRAVITY_AUDIT.md`. Every finding was verified before acting on it; confirmed and fixed several
+real bugs, including two that had made earlier "measured worse, rejected" conclusions (crop, re-rank)
+look worse than the corrected numbers actually are. Full list in `docs/DECISION_LOG.md`.
+
+Now building toward: a deployed web demo. Backend (FastAPI) and frontend (Next.js) are both built and
+tested locally; not yet deployed. Stack is Vercel (frontend) + Hugging Face Spaces (backend) — both
+free, no card required, after Render was ruled out (no paid plans allowed).
 
 ## Next step
 
@@ -86,17 +93,20 @@ the demo — my call.
 
 ### Phase 5: improvements, each measured
 - [x] Crop vs whole image — `src/dyla_match/preprocess.py`, corner-background-subtraction heuristic
-      (no object detector, 8GB RAM budget). Measured twice (naive bbox, then a more robust "largest
-      dense run" bbox after finding a real bug in the first version). Both hurt real-photo accuracy;
-      the more correct version hurt more (CLIP 75.9%→51.7%, DINOv2 46.6%→31.0%). **Rejected, off by
-      default.** `eval/report_dinov2_crop.md`, `eval/report_clip_crop.md`.
+      (no object detector, 8GB RAM budget). Measured three times, two real bugs found and fixed along
+      the way (background-noise blowout; then an annular-jewellery bisection bug caught by an
+      independent audit, `docs/ANTIGRAVITY_AUDIT.md`). Final, bug-fixed numbers: CLIP+crop 56.9% (up
+      from a buggy 51.7%, still below the 75.9% uncropped baseline), DINOv2+crop 32.8% (up from 31.0%,
+      still below 46.6%). **Rejected on the corrected number, off by default.**
+      `eval/report_dinov2_crop.md`, `eval/report_clip_crop.md`.
 - [x] Ensemble — equal-weight CLIP+DINOv2 score fusion (`eval/run_ensemble.py`). Measured worse than
       CLIP alone (55.2% vs 75.9%) — rejected, DINOv2's weaker signal drags it down.
 - [x] Verification re-rank for the kada failure — wider candidate pool + tighter-crop-embedding fusion
-      (`src/dyla_match/rerank.py`, `eval/run_rerank.py`). Measured worse across the board (real top-1
-      31.0% vs 75.9% baseline) and did not fix the kada (still 0% recall) — rejected. A real local-feature
-      verification method (not a second whole-crop embedding) is still open, see `DECISIONS.md`
-      next-two-weeks item 1.
+      (`src/dyla_match/rerank.py`, `eval/run_rerank.py`). First measurement (31.0% vs 75.9% baseline) had
+      a real double-crop bug, caught by the same audit; fixed, and the corrected number is 63.8% — much
+      closer to baseline but still below it, and still doesn't fix the kada (0% recall either way).
+      Rejected on the corrected number. A real local-feature verification method (not a second
+      whole-crop embedding) is still open, see `DECISIONS.md` next-two-weeks item 2.
 - [ ] Calibrated refusal vs cosine threshold — not built; needs a not-in-catalogue negative class, and
       none exists at zero budget (documented, not fabricated).
 
@@ -105,16 +115,21 @@ the demo — my call.
 best-measured configuration in the repo.
 
 ### Phase 6: demo + deployment
-- [x] Requirements written down in `docs/PLAN.md` before any code — stack recommendation (Next.js on
-      Vercel + FastAPI on Render), design brief, API contract draft, cost flag on Render's paid tier
+- [x] Requirements written down in `docs/PLAN.md` before any code — stack recommendation, design brief,
+      API contract draft
 - [x] FastAPI backend (`backend/main.py`) wrapping the matcher — `/health`, `/match`, `/catalogue-image`
       (path-traversal-safe). Tested locally end-to-end against real photos, correct top-1 results.
 - [x] Next.js frontend (`frontend/`) — upload/drop UI, ivory/cream/champagne palette, serif+sans
       pairing, results grid with confidence bars. Builds clean (`npm run build`), dev server verified
       serving the right content; not yet visually checked in a real browser (the browser automation
       tool wasn't responding this session — worth a manual look before deploying).
-- [ ] Deploy backend to Render (`render.yaml` ready; needs my Render account + confirming the paid tier)
-- [ ] Deploy frontend to Vercel (CLI already authenticated as me; not yet run)
+- [x] Stack revised after "we can't buy any plan": Render dropped (free tier too small for CLIP+torch),
+      **Hugging Face Spaces (Docker SDK, free CPU, 16GB RAM, no card)** picked instead. `render.yaml`
+      removed; `scripts/deploy_hf_space.sh` ready to populate a Space once one exists.
+- [ ] Mine: create the free HF Space (Docker SDK) and a free Vercel deploy, both need my login
+- [ ] Deploy backend to the HF Space (`scripts/deploy_hf_space.sh <cloned-space-path>`, then git push)
+- [ ] Deploy frontend to Vercel (CLI already authenticated as me; not yet run — waiting on the backend's
+      live URL to set `NEXT_PUBLIC_API_URL` correctly before deploying)
 - [ ] Verify end-to-end on the live URLs once both are up
 
 ### Phase 7: submission

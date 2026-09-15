@@ -54,6 +54,14 @@ def main():
     rng = random.Random(0)
     new_rows = []
 
+    already_synthetic = df["conditions"].str.contains("synthetic", na=False)
+    if already_synthetic.any():
+        raise SystemExit(
+            f"labels.csv already has {already_synthetic.sum()} synthetic rows -- running this again would "
+            "augment those augmentations too and double the count. Remove the existing synthetic_* rows "
+            "first if you really want to regenerate them."
+        )
+
     for prefix, n_needed in TARGETS.items():
         source_rows = df[df["photo_id"].str.startswith(prefix)].reset_index(drop=True)
         assert len(source_rows) > 0, f"no source rows for {prefix}"

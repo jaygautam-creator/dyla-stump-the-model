@@ -38,10 +38,26 @@ def main():
     session = requests.Session()
     session.headers["User-Agent"] = USER_AGENT
 
-    to_fetch = [(r["image_source_url"], catalogue_dir / r["local_path"]) for r in rows]
+    # products.csv has ~1,500 duplicate local_path rows (several product variants sharing one listing
+    # image) -- dedupe by destination before submitting to the thread pool, or multiple workers race on
+    # writing/reading the exact same file (see src/dyla_match/catalogue/scrape.py's atomic-write fix).
+    seen_dest = set()
+    to_fetch = []
+    for r in rows:
+        dest = catalogue_dir / r["local_path"]
+        if dest not in seen_dest:
+            seen_dest.add(dest)
+            to_fetch.append((r["image_source_url"], dest))
+
     already = sum(1 for _, dest in to_fetch if dest.exists())
-    pending = [(url, dest) for url, dest in to_fetch if not dest.exists()]
-    print(f"{len(to_fetch)} images needed, {already} already on disk, {len(pending)} to download ...")
+    missing_no_url = [dest for url, dest in to_fetch if not dest.exists() and not url]
+    pending = [(url, dest) for url, dest in to_fetch if not dest.exists() and url]
+    print(f"{len(to_fetch)} unique images needed, {already} already on disk, {len(pending)} to download ...")
+    if missing_no_url:
+        # Self-sourced items (own_*.jpg) have no image_source_url -- they're committed to git directly,
+        # not scraped, so this script can't fetch them. Missing here means the clone is incomplete.
+        print(f"  warning: {len(missing_no_url)} image(s) have no source URL and aren't on disk either "
+              f"(expected for self-sourced items, which should already be committed): {missing_no_url}")
 
     ok, failed = 0, 0
     with ThreadPoolExecutor(max_workers=args.workers) as pool:

@@ -19,7 +19,10 @@ from eval.harness import load_labels, summarize, write_report
 
 
 def main():
-    config = yaml.safe_load(open("configs/clip_crop.yaml"))
+    # Plain (uncropped) CLIP config -- verify_rerank does its own explicit tight-crop pass internally
+    # and disables the embedder's own crop flag while it runs, so this must not be *_crop.yaml (that
+    # caused a double-crop bug, fixed 2026-09-15, see docs/ANTIGRAVITY_AUDIT.md).
+    config = yaml.safe_load(open("configs/clip.yaml"))
     index, meta = load_index(Path(config["index"]["dir"]) / config["backbone"])
     embedder = load_embedder(config)
     catalogue_dir = Path(config["catalogue"]["dir"])

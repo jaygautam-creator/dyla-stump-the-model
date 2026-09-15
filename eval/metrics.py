@@ -58,6 +58,8 @@ def far_frr_curve(
     """
     if not scores:
         raise ValueError("no scores")
+    if n_thresholds < 2:
+        raise ValueError("n_thresholds must be at least 2 to span a range")
     lo, hi = min(scores), max(scores)
     curve = []
     for i in range(n_thresholds):
@@ -89,6 +91,12 @@ def multiclass_precision_recall_f1(y_true: list[str], y_pred: list[str]) -> dict
         recall = tp / (tp + fn) if (tp + fn) else float("nan")
         f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) and precision == precision and recall == recall and (precision + recall) > 0 else 0.0
         per_class[c] = {"n": sum(1 for t in y_true if t == c), "precision": precision, "recall": recall, "f1": f1}
+    # macro average treats an undefined (NaN) precision/recall -- a class with zero predictions or zero
+    # true examples -- as contributing 0 to the sum while still counting in the denominator (len(classes)).
+    # That's the same convention as sklearn's zero_division=0 default, not an oversight: an audit flagged
+    # this as a possible divisor bug (2026-09-15, docs/ANTIGRAVITY_AUDIT.md) since it looked like NaN was
+    # being silently dropped from both sides; it's dropped from the sum only, which is the intended
+    # semantics, made explicit here rather than left implicit in the filter condition below.
     macro_p = sum(v["precision"] for v in per_class.values() if v["precision"] == v["precision"]) / len(classes)
     macro_r = sum(v["recall"] for v in per_class.values() if v["recall"] == v["recall"]) / len(classes)
     macro_f1 = sum(v["f1"] for v in per_class.values()) / len(classes)

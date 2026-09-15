@@ -291,3 +291,76 @@ Format:
 - Also asked Claude to write a prompt for a separate tool ("Anti-Gravity CLI", Gemini-based, large
   context) to do an independent full-repo bug/security scan, output to `docs/ANTIGRAVITY_AUDIT.md`. I
   run that myself; Claude reads the result once I share it.
+
+## 2026-09-15: Backend host switched from Render to Hugging Face Spaces — no paid plans allowed
+- Source: mine ("we can't buy any plan for Vercel or Render or anything")
+- Options considered: Render free tier (~512MB RAM), Hugging Face Spaces free CPU tier (16GB RAM, no
+  card), Google Cloud Run free tier (generous, but requires a billing account on file even for
+  free-tier usage), Cloudflare Workers (no PyTorch support at all — would need a full re-architecture
+  onto their hosted CLIP model and re-measuring every number in `DECISIONS.md`)
+- Choice: Hugging Face Spaces (Docker SDK, free CPU). `render.yaml` removed (no longer the target);
+  `scripts/deploy_hf_space.sh` added to populate a Space from a clean clone of its own git repo, reusing
+  `backend/Dockerfile` as-is. Frontend stays on Vercel's free Hobby tier — already free, no change.
+- Why: Render's free tier genuinely can't run this (CLIP+torch need more than ~512MB and free-tier
+  spin-down makes it worse); Spaces gives 30x the RAM for the same $0, with no credit card anywhere in
+  the flow, matching the hard constraint exactly.
+- Trade-off named: Spaces free tier still sleeps after inactivity, so the first request after idle time
+  will be slow (full model reload) — acceptable for a take-home demo, would not be for real traffic.
+- Revisit if: this ever needs to handle real traffic rather than a demo, at which point a paid host with
+  no sleep behavior becomes worth reconsidering.
+
+## 2026-09-15: Anti-Gravity CLI audit (Gemini) — verified findings, fixed real bugs
+- Source: mine (ran the audit prompt Claude drafted earlier); Claude verified each finding before
+  acting on any of them rather than trusting the report blindly, then fixed the confirmed ones
+- Full report: `docs/ANTIGRAVITY_AUDIT.md`. Verified and fixed:
+  - **Critical:** self-sourced catalogue images (`own_*.jpg`) were gitignored with no `image_source_url`
+    to rebuild them from — a genuinely clean checkout or Docker build would crash with `FileNotFoundError`
+    on `build-index`. Whitelisted them in `.gitignore` and committed; `backend/Dockerfile` now copies
+    them explicitly since the hydrate script can't fetch what has no source URL.
+  - **Critical:** confirmed 1,528 duplicate `local_path` rows in `products.csv`; the hydrate script's
+    16-thread pool could race on writing the same destination file. Deduplicated by destination before
+    submitting to the pool, and made `download_and_resize` atomic (unique temp files + `os.replace`)
+    so an interrupted run can't leave a corrupt file that later runs mistake for "already downloaded."
+  - **Critical:** `embed.py` assumed `transformers>=5`'s `.pooler_output` return shape; `pyproject.toml`
+    only pinned `>=4.40`, which returns a bare tensor on 4.x. A clean install resolving 4.x would crash.
+    Now handles both.
+  - **Critical:** `backend/main.py`'s `/match` read the entire upload into memory before checking its
+    size — an oversized upload could exhaust server RAM before the check ever ran. Now reads in bounded
+    chunks and aborts as soon as the limit is exceeded.
+  - **High, and the most consequential one:** confirmed a real double-crop bug in `rerank.py` — the
+    embedder it was given still had its own crop preprocessing on, so every explicit tight-crop this
+    function built got cropped *again* inside `embedder.embed()`. This had made the re-rank experiment
+    look catastrophically bad (31.0%) when the real number, bug fixed, is 63.8% — still below the 75.9%
+    baseline and still doesn't fix the kada, but a materially different, less damning result than first
+    reported. Corrected in `DECISIONS.md`.
+  - **High:** confirmed the crop-to-object heuristic bisects annular jewellery (rings/bangles) — a
+    bangle catalogue image cropped to a 56×269-pixel sliver, one rim only. Fixed (`_dense_extent`: union
+    of every dense run per axis, not just the largest one) and re-measured: crop recovers some ground
+    (CLIP+crop 51.7%→56.9%) but is still worse than the uncropped baseline. Rejected, for the third
+    time, on a corrected number.
+  - **Medium, and the more important correction to the write-up:** the audit's background-RGB check
+    (verified directly, not trusted blind) shows the self-sourced items' catalogue reference photos
+    share a background with every stumper photo (same home table), while the kada's real catalogue
+    photo is a studio white background. This means the 100%/96.4% self-sourced numbers are partly
+    inflated by background match, and the kada's 0% is at least as much a domain-gap problem as a
+    plain-jewellery-similarity one. `DECISIONS.md`'s "Results" and "Next two weeks" rewritten around
+    this corrected, more complete diagnosis.
+  - Also fixed: insecure string-prefix path-traversal check (now `is_relative_to`), backend crashing if
+    launched from a non-repo-root CWD (now anchors CWD to the repo root at import time), missing
+    `pillow-heif` for the iPhone HEIC uploads the API already advertised supporting, frontend upload
+    control being invisible to keyboard/screen-reader users (`display:none` → `sr-only` + proper
+    role/tabIndex/keydown), no fetch timeout on the frontend (added, 90s, sized for the free-tier host's
+    cold-start behaviour), iOS Safari's empty `file.type` on camera-roll photos being rejected outright
+    (extension fallback added), `augment_stumper.py` silently doubling the synthetic set if run twice
+    (now refuses to run if synthetic rows already exist), a missing `configs/dinov2.yaml`, and a
+    div-by-zero guard in `far_frr_curve` for `n_thresholds<2`.
+- Not changed, after checking: the macro-precision divisor (flagged as a possible bug) already matches
+  sklearn's `zero_division=0` convention — made the code's intent explicit in a comment instead of
+  changing the number. Client-controlled Content-Type spoofing on `/match` isn't exploitable as flagged,
+  since the real validation is PIL actually decoding the file, not the client-supplied header — no
+  change needed. The personal email in `scrape.py`'s User-Agent is intentional scraping etiquette
+  (a contact address for the scraped sites' admins) and the repo is private — left as-is.
+- Why this mattered: several "measured worse, rejected" conclusions from earlier the same day were
+  partly artifacts of real bugs, not solely inherent limitations of the ideas being tested. Re-measuring
+  after each fix, rather than trusting either the original numbers or the audit's claims blindly, is
+  what actually earned the corrected write-up.

@@ -51,29 +51,40 @@ def verify_rerank(
     top_k_products: int = 5,
     fusion_weight: float = 0.5,
 ) -> pd.DataFrame:
-    image = Image.open(photo_path).convert("RGB")
-    stage1_query = embedder.embed([image])[0]
+    # `embedder` may itself have use_object_crop=True (e.g. loaded from configs/clip_crop.yaml). This
+    # function applies its own explicit tight crop below -- if the embedder also crops internally, every
+    # embed() call here double-crops (crop-of-a-crop), which measured catastrophically bad and was
+    # originally misread as "the tight-crop signal is just noisy" rather than a real bug (found by an
+    # independent audit, 2026-09-15 -- see docs/ANTIGRAVITY_AUDIT.md). Force the embedder's own cropping
+    # off for the whole-image stage1 pass, and only crop explicitly (once) for the tight pass.
+    original_use_crop = embedder.use_object_crop
+    embedder.use_object_crop = False
+    try:
+        image = Image.open(photo_path).convert("RGB")
+        stage1_query = embedder.embed([image])[0]
 
-    hits = _image_level_search(stage1_query, index, meta, top_k_images)
-    if hits.empty:
-        return hits
+        hits = _image_level_search(stage1_query, index, meta, top_k_images)
+        if hits.empty:
+            return hits
 
-    # best-scoring image per candidate product, keeping which local_path that was (needed to reload
-    # the actual image for the tight-crop verification pass)
-    best_idx = hits.groupby(["vendor", "product_id"])["score"].idxmax()
-    candidates = hits.loc[best_idx].sort_values("score", ascending=False).head(candidate_pool).copy()
+        # best-scoring image per candidate product, keeping which local_path that was (needed to reload
+        # the actual image for the tight-crop verification pass)
+        best_idx = hits.groupby(["vendor", "product_id"])["score"].idxmax()
+        candidates = hits.loc[best_idx].sort_values("score", ascending=False).head(candidate_pool).copy()
 
-    query_tight = Image.open(photo_path).convert("RGB")
-    query_tight = object_crop(query_tight, pad_frac=TIGHT_CROP_PAD_FRAC)
-    query_tight_vec = embedder.embed([query_tight])[0]
+        query_tight = Image.open(photo_path).convert("RGB")
+        query_tight = object_crop(query_tight, pad_frac=TIGHT_CROP_PAD_FRAC)
+        query_tight_vec = embedder.embed([query_tight])[0]
 
-    tight_vecs = []
-    for _, row in candidates.iterrows():
-        cand_img = Image.open(catalogue_dir / row["local_path"]).convert("RGB")
-        cand_tight = object_crop(cand_img, pad_frac=TIGHT_CROP_PAD_FRAC)
-        tight_vecs.append(embedder.embed([cand_tight])[0])
-    tight_vecs = np.stack(tight_vecs)
-    tight_scores = tight_vecs @ query_tight_vec
+        tight_vecs = []
+        for _, row in candidates.iterrows():
+            cand_img = Image.open(catalogue_dir / row["local_path"]).convert("RGB")
+            cand_tight = object_crop(cand_img, pad_frac=TIGHT_CROP_PAD_FRAC)
+            tight_vecs.append(embedder.embed([cand_tight])[0])
+        tight_vecs = np.stack(tight_vecs)
+        tight_scores = tight_vecs @ query_tight_vec
+    finally:
+        embedder.use_object_crop = original_use_crop
 
     candidates["stage1_score"] = candidates["score"]
     candidates["tight_score"] = tight_scores

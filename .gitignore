@@ -4,8 +4,11 @@ __pycache__/
 .venv/
 *.egg-info/
 
-# Large / regenerated data (README rebuilds these)
-data/catalogue/images/
+# Large / regenerated data (README rebuilds these). Self-sourced images (own_*.jpg) are whitelisted --
+# they have no image_source_url to rebuild from (they're not scraped from anywhere), so unlike every
+# other catalogue image they must be committed or a clean checkout can never build the index.
+data/catalogue/images/*
+!data/catalogue/images/own_*.jpg
 data/index/
 data/index_crop/
 *.faiss

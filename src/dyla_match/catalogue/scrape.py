@@ -11,7 +11,9 @@ Usage:
 """
 import argparse
 import csv
+import os
 import re
+import tempfile
 import time
 from pathlib import Path
 
@@ -80,14 +82,22 @@ def download_and_resize(url: str, dest: Path, session: requests.Session, retries
             return False
         break
     dest.parent.mkdir(parents=True, exist_ok=True)
-    tmp = dest.with_suffix(".tmp")
-    tmp.write_bytes(resp.content)
+    # Unique-per-call temp files (not a fixed dest.with_suffix(".tmp")) so two threads racing on the
+    # same dest (products.csv has ~1,500 duplicate local_path rows -- multiple product variants sharing
+    # one image) never read/write/unlink the same temp file. Final save goes through os.replace(), which
+    # is atomic on POSIX and Windows, so a process killed mid-save never leaves a truncated file at dest
+    # for a later run to mistake for "already downloaded" (the dest.exists() check above).
+    raw_tmp = Path(tempfile.mktemp(suffix=".raw", dir=dest.parent))
+    final_tmp = Path(tempfile.mktemp(suffix=".jpg.tmp", dir=dest.parent))
     try:
-        img = Image.open(tmp).convert("RGB")
+        raw_tmp.write_bytes(resp.content)
+        img = Image.open(raw_tmp).convert("RGB")
         img.thumbnail((MAX_IMAGE_SIDE, MAX_IMAGE_SIDE), Image.LANCZOS)
-        img.save(dest, "JPEG", quality=90)
+        img.save(final_tmp, "JPEG", quality=90)
+        os.replace(final_tmp, dest)
     finally:
-        tmp.unlink(missing_ok=True)
+        raw_tmp.unlink(missing_ok=True)
+        final_tmp.unlink(missing_ok=True)
     return True
 
 

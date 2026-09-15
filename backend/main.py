@@ -11,6 +11,12 @@ from pathlib import Path
 
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
+# Every relative path in configs/*.yaml (catalogue dir, index dir) and every other entry point in this
+# project (cli.py, eval/harness.py) assumes it's run from the repo root -- anchor the CWD here too so
+# this still works if uvicorn is launched from inside backend/ or by a supervisor with a different
+# working directory, rather than only working by accident of wherever it happens to be started from.
+os.chdir(Path(__file__).resolve().parent.parent)
+
 import yaml
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -61,13 +67,21 @@ async def match(photo: UploadFile = File(...)):
     if photo.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(400, f"unsupported content type: {photo.content_type}")
 
-    body = await photo.read()
-    if len(body) > MAX_UPLOAD_BYTES:
-        raise HTTPException(413, f"file too large (max {MAX_UPLOAD_BYTES // (1024 * 1024)}MB)")
-
+    # Read in bounded chunks and abort as soon as the limit is exceeded, rather than `await photo.read()`
+    # in one call -- that buffers the entire request body into memory first regardless of size, so an
+    # oversized upload (deliberate or not) can exhaust server RAM before the size check ever runs.
+    chunk_size = 1024 * 1024
+    total = 0
     suffix = Path(photo.filename or "upload.jpg").suffix or ".jpg"
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as tmp:
-        tmp.write(body)
+        while True:
+            chunk = await photo.read(chunk_size)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > MAX_UPLOAD_BYTES:
+                raise HTTPException(413, f"file too large (max {MAX_UPLOAD_BYTES // (1024 * 1024)}MB)")
+            tmp.write(chunk)
         tmp.flush()
         try:
             out = _state["matcher"].match(Path(tmp.name))
@@ -101,7 +115,10 @@ def catalogue_image(product_id: str, vendor: str):
 
     catalogue_dir = _state["catalogue_dir"]
     resolved = (catalogue_dir / local_path).resolve()
-    if not str(resolved).startswith(str(catalogue_dir)):
+    if not resolved.is_relative_to(catalogue_dir):
+        # is_relative_to, not a string prefix check -- str(resolved).startswith(str(catalogue_dir))
+        # would wrongly accept a sibling directory whose name happens to share the same prefix, e.g.
+        # a resolved path under .../catalogue_backup/ when catalogue_dir is .../catalogue.
         raise HTTPException(400, "invalid path")  # defends against a crafted local_path escaping the catalogue dir
     if not resolved.exists():
         raise HTTPException(404, "not found")

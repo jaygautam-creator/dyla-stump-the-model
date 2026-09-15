@@ -106,6 +106,7 @@ npm run dev
 ```
 
 Open `http://localhost:3000`, drop in a phone photo, see the top-5 matches. Deployment target: FastAPI
-on Render (`backend/Dockerfile`, `render.yaml` — see the cost note in `render.yaml` before deploying,
-CLIP+torch need a paid tier) and the frontend on Vercel. Design brief and full reasoning in
-`docs/PLAN.md`, "Phase 6: demo + deployment."
+on **Hugging Face Spaces** (Docker SDK, free CPU tier — 16GB RAM, no card required; `backend/Dockerfile`
++ `scripts/deploy_hf_space.sh`) and the frontend on **Vercel** (free Hobby tier, no card). Render was
+considered and rejected: its free tier's ~512MB RAM can't hold CLIP+torch, and a paid tier wasn't an
+option. Full reasoning and design brief in `docs/PLAN.md`, "Phase 6: demo + deployment."

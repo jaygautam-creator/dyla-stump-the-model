@@ -6,10 +6,15 @@ requires-python = ">=3.11"
 dependencies = [
     "requests>=2.31",
     "pillow>=10.4",
+    "pillow-heif>=0.18",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
-# Added incrementally as each phase needs them, so a fresh clone only pulls what it uses so far.
+# Added incrementally as each phase needs them, so a fresh clone only pulls what it uses so far. Note:
+# cli.py itself needs the `ml` extra regardless of this grouping (it imports dyla_match.embed, which
+# needs torch) -- pyyaml lives in core mainly so `import yaml` isn't the misleading first failure on a
+# bare `pip install -e .`, not because the CLI is otherwise usable without `ml`.
 ml = [
     "torch>=2.3",
     "torchvision>=0.18",
@@ -17,7 +22,6 @@ ml = [
     "numpy>=1.26",
     "pandas>=2.2",
     "transformers>=4.40",
-    "pyyaml>=6.0",
 ]
 api = [
     "fastapi>=0.115",

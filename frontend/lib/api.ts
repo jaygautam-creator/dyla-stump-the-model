@@ -16,14 +16,27 @@ export type MatchResponse = {
 
 export class MatchError extends Error {}
 
+// The backend runs on a free-tier host that sleeps when idle (docs/PLAN.md, "Phase 6") -- a cold start
+// reloads CLIP+torch+FAISS from scratch, which can take well over the ~1s a warm request needs. 90s
+// gives real cold starts room to finish while still eventually surfacing an error instead of freezing
+// the UI forever on a genuinely dead backend or dropped connection.
+const REQUEST_TIMEOUT_MS = 90_000;
+
 export async function matchPhoto(file: File): Promise<MatchResponse> {
   const form = new FormData();
   form.append("photo", file);
 
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}/match`, { method: "POST", body: form });
-  } catch {
+    res = await fetch(`${API_BASE}/match`, {
+      method: "POST",
+      body: form,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (e) {
+    if (e instanceof Error && e.name === "TimeoutError") {
+      throw new MatchError("The matcher is taking too long to respond — it may be waking up from being idle. Please try again in a moment.");
+    }
     throw new MatchError("Could not reach the matcher. It may still be starting up — try again in a moment.");
   }
 
