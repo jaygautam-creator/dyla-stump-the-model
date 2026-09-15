@@ -17,6 +17,17 @@ anything trained) → FAISS cosine search over image-level vectors, aggregated t
 score → top-5. CLIP (`openai/clip-vit-base-patch32`), chosen over DINOv2 by direct measurement: 75.9%
 vs 46.6% top-1 SKU accuracy on real photos.
 
+**Speed, measured on an M2 with no GPU:** ~0.2-1.0s per lookup once the model is warm (embedding the
+photo dominates, ~0.05-0.9s; the FAISS search itself is 10-80ms over the full 7,272-image catalogue).
+No GPU, no batching tricks — this is the plain, un-optimised number.
+
+**A photo with no catalogue match:** the matcher always returns its top-5 nearest neighbours with a raw
+cosine score — there's no calibrated cutoff that says "not in catalogue." That needs real negative
+examples to calibrate and test against, and none exist at zero budget (the only 3 physical items
+available all had to become catalogue positives instead). Faking negatives to report a refusal number
+would measure something that isn't real, so this is named as a deliberate gap, not a built-but-untested
+feature.
+
 ## What was tried and rejected, with evidence
 
 - **Crop-to-object preprocessing** — tried three times, fixing two real bugs along the way (one found
@@ -29,9 +40,6 @@ vs 46.6% top-1 SKU accuracy on real photos.
   pass. First measurement looked catastrophic (31.0%); the audit found a real double-crop bug behind
   it. Fixed, re-measured: 63.8% — closer to baseline but still below it, and the kada is still 0%.
   Rejected on the corrected number.
-- **Calibrated refusal** — not built. Needs a not-in-catalogue negative class, and none exists at zero
-  budget (all 3 available physical items had to become positives). Fabricating negatives would measure
-  something that isn't real, so this is named as absent rather than faked.
 
 **The pattern:** three ideas that should have helped by the original plan's own reasoning all measured
 worse, twice each after fixing a real bug that made the first measurement look even worse than the
@@ -88,19 +96,17 @@ sharp and well-composed, which barely perturbs CLIP.
 
 No fine-tuning, no object detector, no learned re-ranker — everything pretrained and explainable in one
 sentence. The shipped matcher is deliberately the simplest thing tried, because everything smarter
-measured worse here. No refusal capability (no negatives to build or test it against). Only 3 physical
-items, one genuinely external — the 75.9% headline is really "100%/96.4% self-sourced, 0% real match,"
-a materially different and less impressive claim than the aggregate suggests. No defense against a
-genuinely out-of-catalogue item — it always returns 5 neighbours, however irrelevant.
+measured worse here. Only 3 physical items, one genuinely external — the 75.9% headline is really
+"100%/96.4% self-sourced, 0% real match," a materially different and less impressive claim than the
+aggregate suggests.
 
 ## Next two weeks
 
-1. Remove the background from the embedding (mask + composite onto neutral), not just crop tighter —
-   targets the actual diagnosed cause, unlike the bounding-box crop tried three times here.
-2. A real local-feature verification stage (keypoint/edge matching on the clasp or engraving, per the
-   original design) rather than a second whole-crop embedding, which got closer to baseline but never
-   beat it.
+1. Remove the background from the embedding (mask + composite onto neutral) — targets the diagnosed
+   cause directly, unlike the bounding-box crop tried three times here.
+2. A real local-feature verification stage (keypoint/edge matching on the clasp or engraving) rather
+   than a second whole-crop embedding, which got closer to baseline but never beat it.
 3. A handful of genuine not-in-catalogue negatives to make refusal real.
-4. Re-shoot the self-sourced items' catalogue photos on a neutral background, so their accuracy isn't
-   partly an artifact of matching the stumper photos' table.
+4. Re-shoot the self-sourced items' catalogue photos on a neutral background — their accuracy is partly
+   an artifact of matching the stumper photos' table, not a fair comparison to the kada.
 5. More real kada photos, varying background, to separate "this item" from "this domain gap."
