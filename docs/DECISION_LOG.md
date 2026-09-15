@@ -406,3 +406,19 @@ Format:
 - Revisit if: real traffic is ever expected (this setup is a demo, not production-grade — single VM, no
   redundancy, no autoscaling), or if Oracle's Always Free ARM capacity frees up in the region (would let
   a much larger, faster instance replace the current 1GB one within the same $0 budget).
+
+## 2026-09-15: Fixed Vercel's Git-integration auto-deploy (was silently failing every push)
+- Source: mine (noticed a "Production deployment failed" email from Vercel)
+- What was wrong: every manual `vercel --prod` deploy I ran worked fine (they upload files directly from
+  inside `frontend/`, so the correct directory was always implicit), but the *automatic* deployment
+  Vercel triggers on every `git push` to `master` was failing on all of them, including this session's
+  earlier pushes -- it builds from a fresh GitHub checkout of the whole repo, and the project's "Root
+  Directory" setting was never set to `frontend/`, so it looked for a Next.js `app/` folder at the repo
+  root (where `backend/`, `src/`, `scripts/` etc. also live) and found nothing.
+- Fixed via the Vercel API directly (`PATCH /v9/projects/{id}` with `rootDirectory: "frontend"`), then
+  verified with a real redeploy of the failed build, which succeeded.
+- Why it matters: this was silently broken since the frontend was first deployed -- the site itself was
+  never down (manual deploys kept the live URL working), but every git push was quietly failing in the
+  background, which would have surprised anyone relying on push-to-deploy going forward. Caught because
+  the failure emails a person, not because I was checking for it -- worth remembering to verify the
+  Git-triggered path specifically, not just a manual CLI deploy, next time.
