@@ -143,7 +143,7 @@ export default function Home() {
         {status === "done" && (
           <section className="mt-14">
             <h2 className="font-serif text-2xl text-charcoal mb-1">Closest matches</h2>
-            <p className="text-stone text-sm mb-8">Ranked by visual similarity — not a guarantee of an exact match.</p>
+            <p className="text-stone text-sm mb-8">Ranked by visual similarity to your photo.</p>
 
             {results.length === 0 ? (
               <p className="text-stone">No candidates found.</p>
@@ -159,8 +159,7 @@ export default function Home() {
       </main>
 
       <footer className="mx-auto max-w-5xl px-6 py-10 text-center text-xs text-stone/80">
-        Built for the Thuli Studios (Dyla) take-home. Whole-image CLIP retrieval over a scraped catalogue —
-        see the project README for accuracy numbers and known limitations.
+        Dyla — visual search for jewellery, built for Thuli Studios.
       </footer>
     </div>
   );
