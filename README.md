@@ -10,6 +10,8 @@ ranked by how similar they look. Built for Thuli Studios (Dyla), Problem 2 of th
 
 Runs on a free cloud server, so the first match can take a little while — give it a moment.
 
+<p align="center"><img src="docs/assets/app-screenshot.png" alt="Dyla app: a gold ring photo matched against the catalogue, with the correct item ranked first at 88% similarity" width="800"></p>
+
 ## What it does
 
 Upload a phone photo of a ring, chain, bangle, or bracelet. Dyla compares it against a catalogue of
@@ -30,6 +32,16 @@ The pipeline in three steps:
 2. **Search the catalogue.** That fingerprint is compared against every product in the catalogue using a
    fast similarity search, so the right answer surfaces even among thousands of options.
 3. **Rank the results.** The five closest matches are returned with a confidence score, best match first.
+
+```mermaid
+flowchart LR
+    A[Phone photo] --> B[AI vision model<br/>CLIP]
+    B --> C[Fingerprint<br/>a list of numbers]
+    C --> D[Similarity search<br/>FAISS, over 7,272 photos]
+    D --> E[Top 5 matches<br/>+ confidence score]
+
+    F[(Product catalogue<br/>1,010 items)] -.->|pre-computed<br/>fingerprints| D
+```
 
 ## The AI model
 
@@ -58,8 +70,12 @@ if it genuinely helped.
 ## Results
 
 Dyla was tested against a set of real, hand-shot hard phone photos — not just clean catalogue images —
-covering awkward angles, reflections, low light, and clutter. The full results, methodology, and
-engineering write-up are in [`DECISIONS.md`](DECISIONS.md).
+covering awkward angles, reflections, low light, and clutter.
+
+<p align="center"><img src="docs/assets/accuracy-chart.svg" alt="Top-1 accuracy by photo condition: low_light 100%, odd_angle 83%, clean 73%, reflection 62%, occlusion 50%, blur 0%" width="720"></p>
+
+The full results, methodology, and engineering write-up — including exactly where accuracy is weakest
+and why — are in [`DECISIONS.md`](DECISIONS.md).
 
 ## For developers
 
@@ -118,6 +134,7 @@ python -m eval.harness --config configs/default.yaml --out eval/report_clip.md
 | `src/dyla_match/` | The matching engine — embedding, search index, matcher, catalogue tools |
 | `eval/` | Metrics, evaluation harness, generated reports |
 | `data/stumper/` | Real hand-shot test photos used to measure accuracy |
+| `docs/assets/` | Screenshots and the accuracy chart used above |
 | `logs/` | Exported development session transcripts |
 
 ### A note on the test set
