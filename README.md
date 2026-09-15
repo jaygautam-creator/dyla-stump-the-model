@@ -6,6 +6,15 @@ of hard photos and an evaluation harness that breaks accuracy down by what made 
 
 Built for the Thuli Studios (Dyla) take-home, Problem 2. CPU/MPS only — tested on an Apple M2, 8GB RAM.
 
+## Live demo
+
+- Frontend: https://frontend-neon-nine-bl3oyccpzz.vercel.app
+- Backend API: https://140-245-24-132.sslip.io
+
+Deployed at zero recurring cost (no paid plan anywhere) on an Oracle Cloud Always Free VM + Vercel's free
+tier. Slow (~15-18s per match — a 1GB free VM, no GPU) but genuinely live and functional. Full story,
+including three rejected "free" platforms along the way, in `docs/DEPLOYMENT.md`.
+
 ## Result, in one line
 
 CLIP (`openai/clip-vit-base-patch32`), plain whole-image cosine retrieval, no crop/re-rank/ensemble —
@@ -60,6 +69,7 @@ combination that was actually measured.
 | `docs/PLAN.md` | Solution, architecture, eval method, phases |
 | `docs/STATUS.md` | Current phase, open decisions, session history |
 | `docs/DECISION_LOG.md` | Every decision, with reasoning and who made the call |
+| `docs/DEPLOYMENT.md` | What's actually deployed, how, and why (rejected platforms, real bugs hit) |
 | `DECISIONS.md` | The ≤2-page write-up: architecture, trade-offs, where it breaks, next 2 weeks |
 | `src/dyla_match/` | Embedding (`embed.py`), FAISS index (`index.py`), crop preprocessing (`preprocess.py`, tried and rejected — off by default), verification re-rank (`rerank.py`, tried and rejected), matcher (`matcher.py`), CLI (`cli.py`), catalogue scraper (`catalogue/`) |
 | `eval/` | Metrics (`metrics.py`), harness (`harness.py`), ensemble experiment (`run_ensemble.py`), reports |
@@ -105,8 +115,8 @@ cp .env.example .env.local   # points it at http://localhost:8000 by default
 npm run dev
 ```
 
-Open `http://localhost:3000`, drop in a phone photo, see the top-5 matches. Deployment target: FastAPI
-on **Hugging Face Spaces** (Docker SDK, free CPU tier — 16GB RAM, no card required; `backend/Dockerfile`
-+ `scripts/deploy_hf_space.sh`) and the frontend on **Vercel** (free Hobby tier, no card). Render was
-considered and rejected: its free tier's ~512MB RAM can't hold CLIP+torch, and a paid tier wasn't an
-option. Full reasoning and design brief in `docs/PLAN.md`, "Phase 6: demo + deployment."
+Open `http://localhost:3000`, drop in a phone photo, see the top-5 matches. **Deployed live** (URLs
+above) on an Oracle Cloud Always Free VM (backend, via `backend/Dockerfile` + `scripts/oci_provision.py`)
+and Vercel (frontend, free Hobby tier) — see `docs/DEPLOYMENT.md` for the full deployment story,
+including Render/Koyeb/Hugging Face Spaces being tried and ruled out first (none had enough RAM, or
+stopped being free, for CLIP+torch), and `docs/PLAN.md` "Phase 6" for the original design brief.

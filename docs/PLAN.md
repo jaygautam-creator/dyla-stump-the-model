@@ -10,23 +10,20 @@ Written down before any UI code exists, per instruction — nothing here should 
 **Sequencing (my instruction, 2026-09-15):** model accuracy work first, this plan second, build/deploy
 last — not started until told to.
 
-**Recommended stack, revised 2026-09-15 after "we can't buy any plan"** (Claude's recommendation; final
-call is mine) — zero recurring cost, no card required anywhere:
-- **Backend:** FastAPI wrapping the matcher, deployed on **Hugging Face Spaces (Docker SDK, free CPU
-  tier)**. Originally recommended Render, but Render's free web-service tier (~512MB RAM) can't hold
-  CLIP+torch without OOM-crashing, and a paid tier is off the table. HF Spaces' free CPU tier gives 16GB
-  RAM, no credit card, and takes a plain Dockerfile directly — `backend/Dockerfile` reused as-is via
-  `scripts/deploy_hf_space.sh`. Trade-off versus a paid host: still sleeps after inactivity, so the
-  first request after idle time is slow (model reload) — acceptable for a take-home demo, not for real
-  production traffic.
-  - Google Cloud Run's free tier was considered and rejected for this: technically capable, but Google
-    requires a billing account on file even for free-tier usage, which fails the "no card" constraint
-    even though it wouldn't actually charge anything within the free allowance.
-  - Cloudflare Workers was considered and rejected: doesn't run PyTorch at all. Using it would mean
-    re-architecting onto Cloudflare's own hosted CLIP model (different embedding space, would need
-    re-embedding the whole catalogue and re-measuring every number in `DECISIONS.md` from scratch) —
-    too large a change for what this is.
-- **Frontend:** Next.js on **Vercel**, free Hobby tier, no card — unchanged from the original plan.
+**Stack actually deployed, 2026-09-15** — zero recurring cost, no paid plan anywhere, after three other
+platforms were tried and ruled out. Full story in `docs/DEPLOYMENT.md`; summary:
+- **Backend:** FastAPI wrapping the matcher, deployed on an **Oracle Cloud Always Free VM** running
+  Docker + Caddy (TLS via a free `sslip.io` domain). Render (~512MB RAM free tier) and Koyeb (512MB,
+  confirmed via their docs) don't have enough RAM for CLIP+torch. Hugging Face Spaces was the original
+  plan but its free CPU tier turned out to require a PRO subscription for Docker/Gradio apps (confirmed
+  directly against the API, a `402 Payment Required`, not assumed from memory). Oracle's Always Free
+  tier has real headroom (up to 24GB RAM) at genuine $0 — the only catch was ARM (`A1.Flex`) capacity
+  being exhausted in the chosen region, worked around by falling back to the smaller x86 `E2.1.Micro`
+  shape (1 vCPU/1GB) with 6GB of swap added for headroom.
+  - Google Cloud Run was considered and rejected: technically capable, but requires a billing account on
+    file even for free-tier usage, failing the "no card" constraint even though it wouldn't charge.
+  - Cloudflare Workers was considered and rejected: doesn't run PyTorch at all.
+- **Frontend:** Next.js on **Vercel**, free Hobby tier, no card — deployed as planned.
 - **API contract:** `POST /match` with a multipart image upload → JSON `{results: [{vendor,
   product_id, title, score, image_url}], timings}`. Backend serves catalogue thumbnails directly (they're
   already resized to ≤512px) so the frontend never needs its own copy of the 180MB catalogue.
@@ -36,12 +33,13 @@ jewellery-appropriate palette (warm ivory/cream/blush neutrals, soft gold/champa
 generic SaaS-blue dashboard); a bit of restrained modern elegance rather than maximalist. Core flow:
 upload/drop a phone photo → loading state → top-5 results as photo cards with product image, title,
 vendor, and confidence, ranked by score. Should read as a boutique product-recognition tool, not a
-raw ML demo. Built in `frontend/`, verified building and serving locally.
+raw ML demo. Built in `frontend/`, deployed live.
 
-**Open decisions still mine to make when we get here:** whether the frontend also shows the "not in
-catalogue" / low-confidence case explicitly, whether to password-gate the deployed demo (it's a
-take-home submission, not meant for public traffic), whether the free tier's cold-start latency is
-acceptable to leave as-is or needs a "waking up" loading state in the frontend.
+**Open, still mine to decide:** whether the frontend should show the "not in catalogue" / low-confidence
+case explicitly, whether to password-gate the deployed demo (it's a take-home submission, not meant for
+public traffic), whether the ~15-18s-per-request latency on the free VM (no GPU, 1GB RAM, real swap
+usage) is acceptable to leave as-is or needs a "this may take a moment" loading message tuned to that
+reality rather than a generic spinner.
 
 ## What I'm aiming for
 

@@ -364,3 +364,45 @@ Format:
   partly artifacts of real bugs, not solely inherent limitations of the ideas being tested. Re-measuring
   after each fix, rather than trusting either the original numbers or the audit's claims blindly, is
   what actually earned the corrected write-up.
+
+## 2026-09-15: Deployed live — Oracle Cloud Always Free (backend) + Vercel (frontend)
+- Source: mine ("go ahead and create the HF space now" → discovered live that HF Spaces' free CPU tier
+  now requires PRO for Docker/Gradio → mine again, picking Oracle Cloud Always Free from options Claude
+  presented and verified
+- What happened, in order: tried to create the planned HF Space via the API myself (after I authenticated
+  via `hf auth login --token ...`) and hit a live `402 Payment Required` — "hosting Gradio and Docker
+  Spaces on free cpu-basic requires a PRO subscription." This directly contradicted the earlier
+  recommendation, which was wrong (whether from stale training data or a genuine policy change isn't
+  known). Rather than guess again, Claude verified Render (already known too small) and Koyeb (512MB RAM
+  confirmed via their own docs — same problem) via direct fetches instead of trusting memory or blog
+  summaries, then presented the real options: pay for Oracle-style headroom with a card that's never
+  charged if usage stays free, do real engineering to shrink the model to fit ~512MB, or skip live
+  backend deployment. Chose Oracle Cloud Always Free.
+- What I did (can't be done by Claude): signed up for Oracle Cloud, generated an API key. What Claude did
+  from there: provisioned a VM via the OCI API (ARM `A1.Flex` was tried first for its larger free
+  allowance but every size failed with "Out of host capacity" in ap-mumbai-1 — a known, common Always
+  Free ARM availability issue, not a project bug; fell back to the x86 `E2.1.Micro` shape with 6GB swap
+  added for headroom), built the backend Docker image, deployed it behind Caddy for TLS, and deployed the
+  frontend to Vercel.
+- Real problems hit and fixed along the way, not glossed over:
+  - The VM itself was too weak to run its own Docker build (pip installing torch + downloading/embedding
+    7,272 catalogue images pushed 1GB RAM + swap into heavy thrashing; ~45 minutes in, image downloads
+    alone hadn't finished). Fixed by building locally instead (cross-compiled for the VM's `linux/amd64`
+    architecture via `docker buildx`, ~26 minutes total including CLIP embedding under x86 emulation on
+    an M2 Mac) and transferring the finished 1.4GB image over.
+  - The Dockerfile's plain `pip install -e ".[ml,api]"` was pulling in torch's full CUDA/cuDNN
+    dependencies (500MB+ each) on a CPU-only machine with no GPU — caught mid-build (a 553MB `cudnn`
+    wheel downloading was the tell) and fixed by installing the CPU-only torch wheel from PyTorch's own
+    index first, before the rest of the install.
+  - TLS certificate issuance failed with "Error getting validation data" even though OCI's cloud-level
+    security list had ports 80/443 open — the VM's own `iptables` (a separate, OS-level firewall) only
+    allowed SSH by default, a known gotcha on Oracle's stock Ubuntu images. Fixed by explicitly accepting
+    80/443 before the default reject rule and persisting it.
+- Verified, not assumed: a real stumper photo sent to the live public HTTPS URL returns the correct
+  top-1 match. CORS tightened to the exact deployed Vercel origin after both were confirmed live.
+- Trade-off named openly: ~15-18 seconds per match request on the deployed VM (no GPU, 1 shared vCPU,
+  real swap usage) vs ~1 second on the M2 Mac used for development. Acceptable for a take-home demo,
+  not representative of real production latency — see `docs/DEPLOYMENT.md`.
+- Revisit if: real traffic is ever expected (this setup is a demo, not production-grade — single VM, no
+  redundancy, no autoscaling), or if Oracle's Always Free ARM capacity frees up in the region (would let
+  a much larger, faster instance replace the current 1GB one within the same $0 budget).

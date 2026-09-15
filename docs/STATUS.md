@@ -16,16 +16,19 @@ An independent audit (Anti-Gravity CLI / Gemini) ran against the full repo 2026-
 real bugs, including two that had made earlier "measured worse, rejected" conclusions (crop, re-rank)
 look worse than the corrected numbers actually are. Full list in `docs/DECISION_LOG.md`.
 
-Now building toward: a deployed web demo. Backend (FastAPI) and frontend (Next.js) are both built and
-tested locally; not yet deployed. Stack is Vercel (frontend) + Hugging Face Spaces (backend) — both
-free, no card required, after Render was ruled out (no paid plans allowed).
+**Deployed live, 2026-09-15.** Frontend: https://frontend-neon-nine-bl3oyccpzz.vercel.app. Backend:
+https://140-245-24-132.sslip.io. Zero recurring cost, no paid plan anywhere — after Render, Koyeb, and
+Hugging Face Spaces were each tried/checked and ruled out (not enough free RAM, or stopped being free).
+Ended up on an Oracle Cloud Always Free VM (Docker + Caddy for TLS) + Vercel. Slow (~15-18s/request, no
+GPU, 1GB RAM) but genuinely working end-to-end, verified with a real photo over the public HTTPS URL.
+Full story in `docs/DEPLOYMENT.md`.
 
 ## Next step
 
-Mine: confirm or redirect the Phase 6 stack/design recommendation in `docs/PLAN.md`, then say go on
-building the FastAPI backend + Next.js frontend. Separately open: whether to spend more time chasing the
-kada failure with a *real* verification method (Next-two-weeks item 1 in `DECISIONS.md`) before or after
-the demo — my call.
+Mine: try the live demo yourself and confirm it looks/works as expected (I couldn't get a visual browser
+check to work this session — the Chrome automation tool wasn't responding). Separately open: whether to
+password-gate the public demo, and whether to spend more time chasing the kada failure with a *real*
+verification method (Next-two-weeks item 1 in `DECISIONS.md`).
 
 ## Decisions (settled — see `DECISION_LOG.md` for full reasoning)
 
@@ -123,14 +126,24 @@ best-measured configuration in the repo.
       pairing, results grid with confidence bars. Builds clean (`npm run build`), dev server verified
       serving the right content; not yet visually checked in a real browser (the browser automation
       tool wasn't responding this session — worth a manual look before deploying).
-- [x] Stack revised after "we can't buy any plan": Render dropped (free tier too small for CLIP+torch),
-      **Hugging Face Spaces (Docker SDK, free CPU, 16GB RAM, no card)** picked instead. `render.yaml`
-      removed; `scripts/deploy_hf_space.sh` ready to populate a Space once one exists.
-- [ ] Mine: create the free HF Space (Docker SDK) and a free Vercel deploy, both need my login
-- [ ] Deploy backend to the HF Space (`scripts/deploy_hf_space.sh <cloned-space-path>`, then git push)
-- [ ] Deploy frontend to Vercel (CLI already authenticated as me; not yet run — waiting on the backend's
-      live URL to set `NEXT_PUBLIC_API_URL` correctly before deploying)
-- [ ] Verify end-to-end on the live URLs once both are up
+- [x] Stack revised after "we can't buy any plan": Render (too little RAM) and Hugging Face Spaces
+      (Docker/Gradio free CPU now requires PRO, confirmed live against their API) both ruled out.
+      Landed on Oracle Cloud Always Free (VM + Docker + Caddy) — genuinely $0, real headroom.
+      `render.yaml` and `scripts/deploy_hf_space.sh` removed (superseded); `scripts/oci_provision.py`
+      added.
+- [x] Provisioned an Oracle Cloud Always Free VM (`VM.Standard.E2.1.Micro`, ARM A1.Flex was out of
+      capacity in the region every size tried) with 6GB swap for headroom
+- [x] Built the backend image locally (cross-compiled `linux/amd64` via buildx — the VM itself was too
+      weak to run the build; ~45 min in it hadn't finished downloading catalogue images, vs ~26 min
+      total for the same work locally), transferred, and ran it on the VM
+- [x] Fixed a real bug found during setup: the VM's own `iptables` blocked ports 80/443 by default
+      (separate from OCI's security list, which was already open) — Caddy's TLS cert issuance failed
+      until this was fixed and persisted
+- [x] Deployed frontend to Vercel (`vercel --prod`), `NEXT_PUBLIC_API_URL` set to the backend's HTTPS URL
+- [x] Verified end-to-end: real photo → correct top-1 match, over the public HTTPS URL, from outside the
+      VM. CORS tightened to the exact Vercel origin.
+- [ ] Visual check of the deployed frontend in an actual browser — the Chrome automation tool wasn't
+      responding this session; worth the project owner taking a look themselves
 
 ### Phase 7: submission
 - [x] `DECISIONS.md` ≤ 2 pages — filled in with real numbers, including the kada 0%-recall finding

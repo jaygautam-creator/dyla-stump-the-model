@@ -17,6 +17,10 @@ COPY data/catalogue/products.csv ./data/catalogue/products.csv
 COPY data/catalogue/images/own_*.jpg ./data/catalogue/images/
 COPY backend/ ./backend/
 
+# torch's default PyPI wheel pulls in full CUDA/cuDNN dependencies (several GB) even on a CPU-only
+# machine with no GPU -- install the CPU-only build from PyTorch's own index first so pip's resolver
+# sees the constraint already satisfied and never reaches for the CUDA variant.
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -e ".[ml,api]"
 
 # Bake the catalogue images and FAISS index into the image so the running container never needs
