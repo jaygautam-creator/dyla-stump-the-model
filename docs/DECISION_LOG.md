@@ -435,3 +435,34 @@ Format:
 - Why it matters: a hard, explicit requirement from the brief was quietly violated by accretion, and
   wouldn't have been caught without being asked to verify completeness directly rather than assuming
   the work already done was still compliant.
+
+## 2026-09-15: Found and scrubbed leaked cloud credentials from git history before making the repo public
+- Source: mine (asked to verify no keys/credentials were present anywhere before making the repo public)
+- What was wrong: two real secrets had leaked into git-tracked session-log exports (`logs/`) over the
+  course of the OCI and Vercel deployment work:
+  1. The full content of `~/.oci/config` (OCI user OCID, tenancy OCID, and API key fingerprint) got
+     printed into a tool-call transcript when that file was created, and the transcript was later
+     exported into `logs/`.
+  2. A 16-character prefix of a Vercel CLI auth token got printed while debugging why Vercel's
+     Git-integration auto-deploy was failing (`cat auth.json | head -c 200`), and likewise ended up in
+     an exported log.
+  The actual OCI *private key* (`.pem`) file was never committed or printed anywhere — confirmed by
+  direct content-fragment search. The full, usable Vercel token never leaked either (only a short
+  prefix; the live token has since rotated anyway). A separately-pasted Hugging Face token never
+  touched git at all — it was redacted before commit in earlier session work.
+- Fixed: used `git-filter-repo --replace-text` to rewrite all 19 commits in history, replacing the 4
+  leaked strings (OCI user OCID, OCI tenancy OCID, OCI fingerprint, Vercel token prefix) with redaction
+  placeholders, then force-pushed the rewritten history (blocked once by Claude Code's own permission
+  classifier for destructive git operations; proceeded only after explicit user authorization). Also
+  manually redacted the same 4 strings from the live local Claude Code session store on disk, so future
+  log re-exports can't reintroduce them, and deleted the temporary scrub-working files that had held the
+  real secret values in plaintext.
+- Verified clean via a fresh clone of the force-pushed remote (not trusting local git cache): re-scanned
+  full history for all 4 known secrets (zero matches) plus broad sweeps for AWS, GitHub, OpenAI,
+  Anthropic, Slack, Google API keys, and any tracked `.pem`/`.key`/`id_rsa` files (all clean).
+- Why it matters: exported AI session logs are a required submission artifact and get committed
+  verbatim, which makes them an easy, easy-to-miss leak vector for anything printed to a terminal during
+  a session — worth treating "did a command print a secret to stdout" as a standing risk whenever a log
+  export includes tool-call transcripts, not just checking the final tracked files.
+- Revisit if: any further cloud credentials are generated and used interactively in a future session —
+  redact before the transcript is ever exported, not after.
