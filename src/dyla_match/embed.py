@@ -12,6 +12,8 @@ import numpy as np
 import torch
 from PIL import Image
 
+from dyla_match.preprocess import object_crop
+
 
 def pick_device(requested: str = "auto") -> str:
     if requested != "auto":
@@ -26,6 +28,7 @@ class Embedder:
     backbone: str
     hf_id: str
     device: str
+    use_object_crop: bool = False
     processor: object = field(init=False, repr=False)
     model: object = field(init=False, repr=False)
 
@@ -45,6 +48,8 @@ class Embedder:
 
     @torch.inference_mode()
     def embed(self, images: list[Image.Image]) -> np.ndarray:
+        if self.use_object_crop:
+            images = [object_crop(img) for img in images]
         inputs = self.processor(images=images, return_tensors="pt").to(self.device)
         if self.backbone == "clip":
             # transformers>=5's get_image_features returns the vision tower's output object, with the
@@ -68,4 +73,5 @@ def load_embedder(config: dict) -> Embedder:
     backbone = config["backbone"]
     model_cfg = config["models"][backbone]
     device = pick_device(config.get("device", "auto"))
-    return Embedder(backbone=backbone, hf_id=model_cfg["hf_id"], device=device)
+    use_object_crop = config.get("preprocess", {}).get("object_crop", False)
+    return Embedder(backbone=backbone, hf_id=model_cfg["hf_id"], device=device, use_object_crop=use_object_crop)

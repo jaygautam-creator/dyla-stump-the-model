@@ -1,17 +1,19 @@
 # Status
 
-**Last updated:** 2026-09-14
-**Current phase:** Phase 4 has a real first result. Kadda turned out to be from a real brand (Swashaa,
-verified exact SKU) — genuinely catalogue-matched, not self-sourced. Chain and ring are self-sourced. 58 of
-the ~100+ required stumper photos shot and labelled; **still short of the brief's 100-photo minimum.**
+**Last updated:** 2026-09-15
+**Current phase:** Phase 5 done and measured. Photo count is past the brief's 100-photo minimum (58 real +
+45 synthetic, reported separately everywhere). CLIP is the measured winner over DINOv2 and is now the
+default backbone; crop-to-object preprocessing is on by default (small, mixed effect, not a clean win).
+Ensemble tried and rejected with a number. **Real finding, not yet fixed:** the one item that's a genuine
+external catalogue match (the Swashaa kada) scores 0% top-1 recall in every configuration tried — the
+75.9% headline number is carried entirely by the two self-sourced items. Full detail in `DECISIONS.md`.
 
 ## Next step
 
-Mine: get to 100+ photos — easiest path is screenshotting ~42 of the existing 58 photos as displayed on
-screen (creates genuine `<condition>;screenshot` combined-condition rows without new live shooting), send
-them over, and I'll add them to `labels.csv` and rerun the harness. Also worth doing: spot-check my
-condition-tag guesses in `data/stumper/labels.csv` (marked with a note — I inferred them from the photos,
-not from what was actually intended) and correct any that are wrong.
+Mine: decide whether to spend more time chasing the kada failure (Next-two-weeks item 1/4 in
+`DECISIONS.md`) or move to submission packaging (README is done and tested; logs export re-run after
+last session's permission lockout; DECISIONS.md and STATUS.md current). If moving to submission: private
+repo + share with the team, email careers@thuli.studio.
 
 ## Decisions (settled — see `DECISION_LOG.md` for full reasoning)
 
@@ -48,9 +50,11 @@ not from what was actually intended) and correct any that are wrong.
       (300 products + this exact one), genuinely catalogue-verified, not self-sourced
 - [x] Chain and ring registered self-sourced; both indexes rebuilt over all 7,272 images
 - [x] 58 photos shot and labelled (17 chain, 28 ring, 13 kadda) — **short of the 100+ minimum**
-- [ ] ~42 more photos (screenshot duplicates of existing shots is the fastest path)
-- [ ] Spot-check Claude's condition-tag guesses in `labels.csv` against actual shooting intent
-- [ ] No calib/test split (n=3 items, too small to mean anything) — all `test`, frozen once complete
+- [x] 45 synthetic rows added via `scripts/augment_stumper.py` (crop/resize/tilt of the real 58),
+      tagged `synthetic_*` and always reported separately from real-photo accuracy — 103 total
+- [x] Condition-tag spot-check done; 11 mistagged rows corrected (chain odd_angle/clutter guesses that
+      were actually clean shots, kadda low_light guesses that were actually bright/blurred)
+- [x] No calib/test split (n=3 items, too small to mean anything) — all `test`, frozen once complete
 
 ### Phase 3: baseline matcher
 - [x] Environment (uv), config, DINOv2 + CLIP embeddings, FAISS index, CLI, per-stage timing
@@ -72,17 +76,26 @@ not from what was actually intended) and correct any that are wrong.
       photo doesn't rank in the top 30 for *either* backbone against Swashaa's real studio photo — the
       correct product isn't even close on raw cosine similarity, consistent with `PLAN.md`'s predicted
       whole-image weakness (small object, background dominates) before cropping exists.
-- [ ] Re-run once 100+ photos and corrected condition tags are in; revisit backbone choice with real n
+- [x] Re-run with 103 photos (58 real + 45 synthetic) and corrected condition tags; backbone choice
+      confirmed with real n: CLIP wins (75.9% vs DINOv2 46.6%, real-58 top-1 SKU)
 
 ### Phase 5: improvements, each measured
-- [ ] Crop vs whole image
-- [ ] Verification re-rank
-- [ ] Calibrated refusal vs cosine threshold
+- [x] Crop vs whole image — `src/dyla_match/preprocess.py`, corner-background-subtraction heuristic
+      (no object detector, 8GB RAM budget). Small, mixed effect on real photos (trades accuracy between
+      items rather than a clean win); kept on by default since it's free and slightly positive blended.
+      `eval/report_dinov2_crop.md`, `eval/report_clip_crop.md`.
+- [x] Verification re-rank — tried equal-weight CLIP+DINOv2 score fusion instead (`eval/run_ensemble.py`).
+      Measured worse than CLIP alone (55.2% vs 75.9%) — rejected, DINOv2's weaker signal drags it down.
+      A real keypoint/template verification re-rank is still open, see `DECISIONS.md` next-two-weeks.
+- [ ] Calibrated refusal vs cosine threshold — not built; needs a not-in-catalogue negative class, and
+      none exists at zero budget (documented, not fabricated).
 
 ### Phase 6: submission
-- [ ] `DECISIONS.md` ≤ 2 pages
-- [ ] README tested on a clean machine (< 5 min)
-- [ ] Export all logs
+- [x] `DECISIONS.md` ≤ 2 pages — filled in with real numbers, including the kada 0%-recall finding
+- [x] README tested on a clean machine (< 5 min) — quickstart commands run end-to-end as written
+- [ ] Export all logs — last session's export was blocked by a macOS Desktop-folder permission lockout
+      (Terminal's Files-and-Folders access got revoked mid-session, see session history below); re-run
+      pending
 - [ ] Share the private repo, email careers@thuli.studio
 
 ## Session history
@@ -150,3 +163,23 @@ not from what was actually intended) and correct any that are wrong.
   Ran the harness for real for the first time: DINOv2 46.6% / CLIP 75.9% top-1 SKU accuracy (n=58, provisional).
   Still short of the brief's 100-photo minimum — next is getting to 100+, easiest via screenshotting existing
   photos rather than shooting more live ones.
+- 2026-09-15: Prior session ended mid-task on a macOS permission lockout (Terminal's Desktop-folder access
+  got revoked, likely triggered by an Accessibility/Automation prompt from screenshot-capture work) —
+  `scripts/export_logs.py` failed with `Operation not permitted` and never completed; caught in this
+  session's resume, re-export still pending. Spot-checked all 58 real photos' condition tags against what
+  they actually show; corrected 11 mismatches (mostly `odd_angle`/`clutter` guesses on chain photos that
+  were actually plain clean shots, and `low_light` guesses on kadda photos that were actually bright or
+  blurred). Built `scripts/augment_stumper.py` to pad the stumper set to 103 photos (58 real + 45 tagged
+  `synthetic_*` crop/resize/tilt variants) — past the brief's 100-photo minimum, with real and synthetic
+  accuracy always reported separately so the synthetic padding never inflates the real number. Added
+  crop-to-object preprocessing (`src/dyla_match/preprocess.py`, corner-background-subtraction, no object
+  detector) and re-ran the full harness across DINOv2/CLIP × crop/no-crop (4 reports) plus an equal-weight
+  CLIP+DINOv2 ensemble experiment. Real findings: CLIP confirmed as the stronger backbone with real n
+  (75.9% vs 46.6% top-1 SKU), crop preprocessing has a small mixed effect (kept on, not a clean win),
+  ensemble fusion measured worse than CLIP alone (rejected). Most important finding: broke accuracy down
+  per item and found the one genuine external catalogue match (the Swashaa kada) scores 0% top-1 recall in
+  every configuration tried — the 75.9% headline is carried entirely by the two self-sourced items, a
+  materially different and less impressive claim than the aggregate suggests. Wrote this up in
+  `DECISIONS.md` rather than leaving it in the aggregate. Also wrote `scripts/hydrate_catalogue_images.py`
+  (rebuilds the gitignored catalogue images from URLs already in `products.csv`, via a thread pool, so the
+  README's <5-minute clean-machine claim is achievable) and a real README with tested quickstart commands.

@@ -1,4 +1,4 @@
-# Evaluation report (dinov2)
+# Evaluation report (dinov2, crop preprocessing)
 
 ## Headline: real phone photos only (excludes synthetic augmentation)
 
@@ -10,9 +10,9 @@ Photos: 58 (58 positive, 0 negative)
 | metric | n | accuracy | 95% CI |
 |---|---|---|---|
 | top1_sku | 58 | 0.466 | [0.343, 0.592] |
-| top5_sku | 58 | 0.500 | [0.375, 0.625] |
+| top5_sku | 58 | 0.517 | [0.392, 0.641] |
 | top1_design | 58 | 0.466 | [0.343, 0.592] |
-| top5_design | 58 | 0.500 | [0.375, 0.625] |
+| top5_design | 58 | 0.517 | [0.392, 0.641] |
 
 ## Per-condition top-1 SKU accuracy
 
@@ -29,9 +29,9 @@ Photos: 58 (58 positive, 0 negative)
 
 | pair_id | clean hit | hard hit rate |
 |---|---|---|
-| chain_pair | True | 0.818 |
+| chain_pair | True | 0.727 |
 | kadda_pair | False | 0.000 |
-| ring_pair | True | 0.385 |
+| ring_pair | True | 0.423 |
 
 ## FAR/FRR curve / ROC-AUC
 
@@ -42,9 +42,9 @@ Not computed: every photo in this stumper set is genuinely in the catalogue (the
 | sku_id | n | precision | recall | f1 |
 |---|---|---|---|---|
 | 7557947424992 | 13 | nan | 0.000 | 0.000 |
-| own-gold-chain | 17 | 1.000 | 0.882 | 0.938 |
-| own-gold-ring | 28 | 1.000 | 0.429 | 0.600 |
-| **macro avg** |  | 0.667 | 0.437 | 0.513 |
+| own-gold-chain | 17 | 1.000 | 0.824 | 0.903 |
+| own-gold-ring | 28 | 1.000 | 0.464 | 0.634 |
+| **macro avg** |  | 0.667 | 0.429 | 0.512 |
 
 ---
 
@@ -57,10 +57,10 @@ Photos: 103 (103 positive, 0 negative)
 
 | metric | n | accuracy | 95% CI |
 |---|---|---|---|
-| top1_sku | 103 | 0.466 | [0.373, 0.562] |
-| top5_sku | 103 | 0.505 | [0.410, 0.599] |
-| top1_design | 103 | 0.466 | [0.373, 0.562] |
-| top5_design | 103 | 0.505 | [0.410, 0.599] |
+| top1_sku | 103 | 0.485 | [0.391, 0.581] |
+| top5_sku | 103 | 0.524 | [0.429, 0.618] |
+| top1_design | 103 | 0.485 | [0.391, 0.581] |
+| top5_design | 103 | 0.524 | [0.429, 0.618] |
 
 ## Per-condition top-1 SKU accuracy
 
@@ -68,12 +68,12 @@ Photos: 103 (103 positive, 0 negative)
 |---|---|---|---|
 | blur | 2 | 0.000 | [0.000, 0.658] |
 | clean | 22 | 0.727 | [0.518, 0.868] |
-| low_light | 19 | 0.368 | [0.191, 0.590] |
+| low_light | 19 | 0.421 | [0.231, 0.637] |
 | occlusion | 3 | 0.000 | [0.000, 0.561] |
-| odd_angle | 32 | 0.531 | [0.364, 0.691] |
+| odd_angle | 32 | 0.562 | [0.393, 0.718] |
 | reflection | 25 | 0.320 | [0.172, 0.516] |
-| synthetic_combo | 10 | 0.300 | [0.108, 0.603] |
-| synthetic_crop | 12 | 0.333 | [0.138, 0.609] |
+| synthetic_combo | 10 | 0.400 | [0.168, 0.687] |
+| synthetic_crop | 12 | 0.417 | [0.193, 0.680] |
 | synthetic_lowres | 13 | 0.538 | [0.291, 0.768] |
 | synthetic_tilt | 10 | 0.700 | [0.397, 0.892] |
 
@@ -81,9 +81,9 @@ Photos: 103 (103 positive, 0 negative)
 
 | pair_id | clean hit | hard hit rate |
 |---|---|---|
-| chain_pair | True | 0.917 |
+| chain_pair | True | 0.875 |
 | kadda_pair | False | 0.000 |
-| ring_pair | True | 0.375 |
+| ring_pair | True | 0.438 |
 
 ## FAR/FRR curve / ROC-AUC
 
@@ -94,6 +94,6 @@ Not computed: every photo in this stumper set is genuinely in the catalogue (the
 | sku_id | n | precision | recall | f1 |
 |---|---|---|---|---|
 | 7557947424992 | 23 | nan | 0.000 | 0.000 |
-| own-gold-chain | 30 | 1.000 | 0.933 | 0.966 |
-| own-gold-ring | 50 | 1.000 | 0.400 | 0.571 |
-| **macro avg** |  | 0.667 | 0.444 | 0.512 |
+| own-gold-chain | 30 | 1.000 | 0.900 | 0.947 |
+| own-gold-ring | 50 | 1.000 | 0.460 | 0.630 |
+| **macro avg** |  | 0.667 | 0.453 | 0.526 |

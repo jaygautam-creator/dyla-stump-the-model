@@ -67,6 +67,34 @@ def far_frr_curve(
     return curve
 
 
+def multiclass_precision_recall_f1(y_true: list[str], y_pred: list[str]) -> dict:
+    """Per-class precision/recall/F1 for closed-set top-1 identification, plus macro averages.
+
+    Not a substitute for the FAR/FRR refusal curve above -- that curve needs a not-in-catalogue
+    negative class, which this stumper set doesn't have (documented, zero-budget decision: no genuine
+    negatives exist). This instead treats "which registered SKU is this a photo of" as a closed-set
+    multi-class problem, which is answerable with the positives we do have and catches asymmetric
+    confusion (e.g. one item's photos always being misread as another) that a single accuracy number
+    would hide.
+    """
+    if len(y_true) != len(y_pred):
+        raise ValueError("y_true and y_pred must be the same length")
+    classes = sorted(set(y_true))
+    per_class = {}
+    for c in classes:
+        tp = sum(1 for t, p in zip(y_true, y_pred) if t == c and p == c)
+        fp = sum(1 for t, p in zip(y_true, y_pred) if t != c and p == c)
+        fn = sum(1 for t, p in zip(y_true, y_pred) if t == c and p != c)
+        precision = tp / (tp + fp) if (tp + fp) else float("nan")
+        recall = tp / (tp + fn) if (tp + fn) else float("nan")
+        f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) and precision == precision and recall == recall and (precision + recall) > 0 else 0.0
+        per_class[c] = {"n": sum(1 for t in y_true if t == c), "precision": precision, "recall": recall, "f1": f1}
+    macro_p = sum(v["precision"] for v in per_class.values() if v["precision"] == v["precision"]) / len(classes)
+    macro_r = sum(v["recall"] for v in per_class.values() if v["recall"] == v["recall"]) / len(classes)
+    macro_f1 = sum(v["f1"] for v in per_class.values()) / len(classes)
+    return {"per_class": per_class, "macro_precision": macro_p, "macro_recall": macro_r, "macro_f1": macro_f1}
+
+
 @dataclass
 class ReliabilityBin:
     lo: float
@@ -128,5 +156,10 @@ if __name__ == "__main__":
     correct = [False, False, False, True, True]  # crude but bins land near their own confidence
     ece, _ = expected_calibration_error(confs, correct, n_bins=10)
     assert ece < 0.2, ece  # loose bound; exact value depends on binning, not the point of this check
+
+    # 2 classes, one confusion: "a" photo #2 misread as "b" -> a: recall 0.5, precision 1.0; b: precision 0.5, recall 1.0
+    r = multiclass_precision_recall_f1(["a", "a", "b"], ["a", "b", "b"])
+    assert r["per_class"]["a"]["precision"] == 1.0 and r["per_class"]["a"]["recall"] == 0.5
+    assert r["per_class"]["b"]["precision"] == 0.5 and r["per_class"]["b"]["recall"] == 1.0
 
     print("eval/metrics.py: all checks passed")

@@ -161,3 +161,58 @@ Format:
 - Diagnosed one concrete failure along the way: the kadda's own "clean" phone photo doesn't rank in the
   top 30 of either backbone against Swashaa's real studio photo of the same product — consistent with
   `PLAN.md`'s predicted whole-image weakness (small object, background dominates) ahead of any cropping.
+
+## 2026-09-15: Condition-tag spot-check corrections
+- Source: mine (asked Claude to spot-check its own visual-read guesses from 2026-09-14)
+- Options: trust the guessed tags as-is, or re-inspect every photo against what it actually shows
+- Choice: re-inspected all 58 real photos; corrected 11 mismatches (`chain_01/03/05/07/08/11/16`,
+  `kadda_01/02/03/04`) — mostly `odd_angle`/`clutter` guesses on chain photos that were actually plain
+  clean shots, and `low_light` guesses on kadda photos that were actually bright or out of focus
+- Why / evidence: per-photo visual re-inspection, documented in the conversation this decision came from
+- Revisit if: any other condition tags turn out wrong on closer inspection later
+
+## 2026-09-15: Pad the stumper set with tagged synthetic augmentation, reported separately
+- Source: mine ("duplicate them, resize them, crop them, tilt them" — explicit instruction) ; Claude
+  proposed reporting synthetic and real accuracy separately rather than blending them silently, and
+  applied that by default without asking further
+- Options: (a) merge synthetic rows into the test set indistinguishably from real photos, (b) tag them
+  and report real-vs-synthetic accuracy separately in every report
+- Choice: (b). `scripts/augment_stumper.py` adds 45 crop/resize/rotate variants of the real 58 photos,
+  tagged `synthetic_*`, bringing the set to 103 (past the brief's 100-photo minimum)
+- Why / evidence: a synthetic near-duplicate of a photo the matcher has already seen (same lighting,
+  background, physical instance) is not independent evidence the way a new real photo is — blending it
+  into the headline number without saying so would overstate accuracy. `eval/harness.py`'s `run_real_eval`
+  writes a "real phone photos only" section and a separate "blended" section in every report.
+- Revisit if: more real phone photos become available and the synthetic padding is no longer needed to
+  clear the 100-photo minimum
+
+## 2026-09-15: CLIP + crop-to-object preprocessing as the default config; DINOv2+CLIP ensemble rejected
+- Source: suggested by Claude (Phase 5 items from `docs/PLAN.md`), accepted
+- Options: DINOv2 vs CLIP as default backbone; whole image vs crop-to-object preprocessing; single
+  backbone vs equal-weight ensemble of both
+- Choice: CLIP, with crop-to-object preprocessing on. Ensemble rejected.
+- Why / evidence: CLIP confirmed the stronger backbone on the full real-58 photo set (75.9% vs 46.6%
+  top-1 SKU, `eval/report_clip.md` vs `eval/report.md`). Crop-to-object (`src/dyla_match/preprocess.py`,
+  corner-background-subtraction, no object detector — 8GB budget) has a small, mixed effect: doesn't move
+  the aggregate number for either backbone but trades accuracy between items (e.g. DINOv2 chain recall
+  88.2%→82.4%, ring recall 42.9%→46.4%); kept on since it's free and slightly positive on the blended set.
+  Equal-weight CLIP+DINOv2 score fusion (weight fixed a priori, not tuned against stumper accuracy) scored
+  55.2% real top-1 — worse than CLIP alone — because DINOv2's much weaker signal drags the average down.
+- Revisit if: a real object detector or a proper verification re-rank stage gets built (Phase 5
+  next-two-weeks item), which could change whether crop/ensemble still look this way.
+
+## 2026-09-15: Named finding — the one genuine catalogue item (the kada) scores 0% top-1 recall
+- Source: mine (asked Claude to push for "very very good" accuracy); Claude found and reported this
+  rather than only reporting the aggregate number
+- What happened: broke the 75.9% headline top-1 SKU accuracy down per item. The self-sourced gold chain
+  (100%) and gold ring (96.4%) carry the whole number; the Swashaa kada — the only item that's a genuine
+  external catalogue match, not self-sourced — scores 0% top-1 recall in every backbone/preprocessing
+  combination tried, including the crop and ensemble variants. A representative failure: a clean kada
+  photo scores 0.90 cosine against the *self-sourced gold ring*, a different item entirely, and the true
+  Swashaa SKU doesn't appear in the top 5 at all.
+- Why it matters: this is exactly the whole-image weakness `docs/PLAN.md` predicted before any stumper
+  photo was taken (small, low-detail object, background dominates) — now confirmed as the matcher's real
+  failure mode, not lighting/angle/occlusion as originally hypothesized. Named openly in `DECISIONS.md`
+  rather than left inside the aggregate, per the "measure don't assume, name weaknesses openly" rule.
+- Revisit if: a verification re-rank stage or more kada photos change this — currently open as
+  next-two-weeks item 1 and 4 in `DECISIONS.md`.

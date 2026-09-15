@@ -7,6 +7,7 @@ __pycache__/
 # Large / regenerated data (README rebuilds these)
 data/catalogue/images/
 data/index/
+data/index_crop/
 *.faiss
 *.npy
 

@@ -21,7 +21,7 @@ import pandas as pd
 import yaml
 
 from dyla_match.matcher import Matcher
-from eval.metrics import far_frr_curve, topk_accuracy, wilson_ci
+from eval.metrics import far_frr_curve, multiclass_precision_recall_f1, topk_accuracy, wilson_ci
 
 
 def load_labels(labels_csv: Path) -> pd.DataFrame:
@@ -100,11 +100,16 @@ def summarize(matches: pd.DataFrame, k: int = 5) -> dict:
     labels = matches["in_catalogue"].tolist()
     curve = far_frr_curve(scores, labels, n_thresholds=21) if len(set(labels)) > 1 else []
 
+    y_true = positives["sku_id"].tolist()
+    y_pred = [r["top_sku_ids"][0] if r["top_sku_ids"] else "" for _, r in positives.iterrows()]
+    prf = multiclass_precision_recall_f1(y_true, y_pred) if y_true else None
+
     return {
         "overall": overall,
         "per_condition": per_condition,
         "paired_drop": paired_drop,
         "far_frr_curve": curve,
+        "precision_recall_f1": prf,
         "n_photos": len(matches),
         "n_positives": len(positives),
         "n_negatives": len(matches) - len(positives),
@@ -139,8 +144,82 @@ def write_report(summary: dict, config: dict, out_path: Path) -> None:
         lines += ["", "## FAR/FRR curve (raw top-1 cosine score — no calibration yet, Phase 5)", "", "| threshold | FAR | FRR |", "|---|---|---|"]
         for t, far, frr in summary["far_frr_curve"]:
             lines.append(f"| {t:.3f} | {far:.3f} | {frr:.3f} |")
+    else:
+        lines += [
+            "",
+            "## FAR/FRR curve / ROC-AUC",
+            "",
+            "Not computed: every photo in this stumper set is genuinely in the catalogue (the refusal "
+            "extension was dropped for D1/D3 — no zero-cost not-in-catalogue negatives exist). FAR/FRR "
+            "and ROC-AUC need a negative class; fabricating one here would measure something that isn't "
+            "real. The precision/recall/F1 below is the honest substitute: a closed-set multi-class "
+            "identification metric computed only from the positives we actually have.",
+        ]
+
+    if summary.get("precision_recall_f1"):
+        prf = summary["precision_recall_f1"]
+        lines += [
+            "",
+            "## Per-item precision / recall / F1 (closed-set top-1 SKU identification)",
+            "",
+            "| sku_id | n | precision | recall | f1 |",
+            "|---|---|---|---|---|",
+        ]
+        for sku, r in prf["per_class"].items():
+            lines.append(f"| {sku} | {r['n']} | {r['precision']:.3f} | {r['recall']:.3f} | {r['f1']:.3f} |")
+        lines.append(f"| **macro avg** |  | {prf['macro_precision']:.3f} | {prf['macro_recall']:.3f} | {prf['macro_f1']:.3f} |")
 
     out_path.write_text("\n".join(lines) + "\n")
+
+
+def run_real_eval(config_path: str, labels_csv: Path, photos_dir: Path, out_path: Path) -> None:
+    """Run the harness on the real stumper set: labels.csv -> matcher -> two reports in one file.
+
+    Reports both the blended set (real + synthetic augmentation, all 100+ photos) and the real-photos-
+    only subset. The real-only numbers are the ones to trust for "does this matcher work on a hard
+    phone photo" -- synthetic rows are near-duplicates of a real photo (same lighting/background/
+    instance, just cropped/rotated/downsampled) and are not independent evidence the way a new photo
+    would be, so blending them in without saying so would overstate accuracy.
+    """
+    from dyla_match.embed import load_embedder
+    from dyla_match.index import load_index
+
+    config = yaml.safe_load(open(config_path))
+    index_dir = Path(config["index"]["dir"]) / config["backbone"]
+    index, meta = load_index(index_dir)
+    embedder = load_embedder(config)
+    matcher = Matcher(embedder, index, meta, top_k_images=config["top_k_images"], top_k_products=config["top_k"])
+
+    labels = load_labels(labels_csv)
+    matches = run_matches(matcher, labels, photos_dir, top_k=config["top_k"])
+
+    is_synthetic = matches["conditions"].str.contains("synthetic")
+    real_matches = matches[~is_synthetic].reset_index(drop=True)
+
+    summary_all = summarize(matches, k=config["top_k"])
+    summary_real = summarize(real_matches, k=config["top_k"])
+
+    lines = [f"# Evaluation report ({config['backbone']}"
+             + (", crop preprocessing" if config.get("preprocess", {}).get("object_crop") else "")
+             + ")", ""]
+    out_path.write_text("\n".join(lines))
+
+    tmp_all = out_path.with_suffix(".all.tmp.md")
+    tmp_real = out_path.with_suffix(".real.tmp.md")
+    write_report(summary_all, config, tmp_all)
+    write_report(summary_real, config, tmp_real)
+
+    combined = (
+        "\n".join(lines)
+        + "\n## Headline: real phone photos only (excludes synthetic augmentation)\n\n"
+        + "\n".join(tmp_real.read_text().splitlines()[2:])
+        + "\n\n---\n\n## Blended: real + synthetic augmentation (padding to the brief's 100+ minimum)\n\n"
+        + "\n".join(tmp_all.read_text().splitlines()[2:])
+    )
+    out_path.write_text(combined)
+    tmp_all.unlink()
+    tmp_real.unlink()
+    print(f"wrote {out_path} (real n={summary_real['n_photos']}, blended n={summary_all['n_photos']})")
 
 
 def _dry_run_check():
@@ -186,4 +265,15 @@ def _dry_run_check():
 
 
 if __name__ == "__main__":
-    _dry_run_check()
+    import argparse
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--config", default=None, help="run a real eval with this config (omit for the wiring dry run)")
+    ap.add_argument("--out", default=None, help="report path, required with --config")
+    args = ap.parse_args()
+
+    if args.config:
+        assert args.out, "--out is required with --config"
+        run_real_eval(args.config, Path("data/stumper/labels.csv"), Path("data/stumper/photos"), Path(args.out))
+    else:
+        _dry_run_check()

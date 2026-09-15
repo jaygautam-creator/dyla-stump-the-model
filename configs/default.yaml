@@ -1,8 +1,11 @@
-# Swappable pipeline config for the Phase 3 baseline matcher.
+# Swappable pipeline config for the matcher.
 # Every knob here should be changeable without touching code — that's the point of a config file
 # on a project I need to explain and change live.
 
-backbone: dinov2   # default backbone; overridden per-run for the dinov2 vs clip comparison in Phase 4
+# Phase 4 measured DINOv2 vs CLIP on the real 58-photo stumper set: CLIP top-1 SKU 75.9% vs DINOv2
+# 46.6% -- the opposite of PLAN.md's expectation, and a real number, not a guess. CLIP is the default
+# as a result. See eval/report.md (dinov2) and eval/report_clip.md (clip) for the comparison.
+backbone: clip
 
 models:
   dinov2:
@@ -22,5 +25,13 @@ catalogue:
   dir: data/catalogue
   csv: data/catalogue/products.csv
 
+# Phase 5: crop to the foreground object before embedding (src/dyla_match/preprocess.py), addressing
+# the whole-image weakness PLAN.md predicted and Phase 4 diagnosed directly (the kadda's own clean
+# photo didn't rank in the catalogue's top 30 uncropped). Measured, not assumed: see
+# eval/report_dinov2_crop.md and eval/report_clip_crop.md next to the uncropped reports. On the real
+# 58-photo set it's neutral-to-slightly-positive per condition and doesn't hurt, so it stays on.
+preprocess:
+  object_crop: true
+
 index:
-  dir: data/index
+  dir: data/index_crop
