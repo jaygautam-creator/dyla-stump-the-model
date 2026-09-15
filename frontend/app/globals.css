@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+:root {
+  --ivory: #faf6ef;
+  --cream: #f3ead9;
+  --blush: #f1e2dc;
+  --champagne: #c9a86a;
+  --champagne-dark: #a9834a;
+  --charcoal: #2a2521;
+  --stone: #78716c;
+  --line: #e7dcc8;
+}
+
+@theme inline {
+  --color-ivory: var(--ivory);
+  --color-cream: var(--cream);
+  --color-blush: var(--blush);
+  --color-champagne: var(--champagne);
+  --color-champagne-dark: var(--champagne-dark);
+  --color-charcoal: var(--charcoal);
+  --color-stone: var(--stone);
+  --color-line: var(--line);
+  --font-serif: var(--font-playfair);
+  --font-sans: var(--font-inter);
+}
+
+body {
+  background: var(--ivory);
+  color: var(--charcoal);
+}

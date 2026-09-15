@@ -272,3 +272,22 @@ Format:
   Whole-image cosine similarity over uncropped photos is, so far, still the best of everything tried.
 - Revisit if: a proper object detector (rather than background-subtraction heuristics) is used instead --
   named as next-two-weeks item 3 in `DECISIONS.md`.
+
+## 2026-09-15: Built the backend + frontend (Phase 6), stack as recommended
+- Source: mine ("go ahead, start building the backend and frontend"), on Claude's recommended stack
+  from the Phase 6 plan written down earlier the same day
+- Built: `backend/main.py` (FastAPI: `/health`, `/match`, `/catalogue-image`), `backend/Dockerfile`
+  (builds the catalogue + FAISS index at image-build time from committed metadata, same idea as
+  `scripts/hydrate_catalogue_images.py`), `render.yaml`. `frontend/` (Next.js + Tailwind, ivory/cream/
+  champagne palette per the design brief, upload UI, results grid with confidence bars).
+- Verified locally: backend correctly returns the own-gold-chain as top-1 for a real stumper photo over
+  HTTP; catalogue-image path-traversal attempt returns 404, not a file; frontend builds clean and the
+  dev server serves the right markup/content. Not yet visually checked in an actual browser window — the
+  Claude-in-Chrome browser tool wasn't responding this session (timed out, possibly needs a permission
+  grant); a manual look is worth doing before deploying.
+- Not yet deployed: Render needs my account and a paid-tier confirmation (free tier's ~512MB RAM is very
+  likely too small for CLIP+torch, per the cost flag already in `docs/PLAN.md`); Vercel CLI here is
+  already authenticated as me, so that deploy is a smaller, near-zero-cost step whenever I say go.
+- Also asked Claude to write a prompt for a separate tool ("Anti-Gravity CLI", Gemini-based, large
+  context) to do an independent full-repo bug/security scan, output to `docs/ANTIGRAVITY_AUDIT.md`. I
+  run that myself; Claude reads the result once I share it.

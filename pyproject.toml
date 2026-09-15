@@ -19,6 +19,11 @@ ml = [
     "transformers>=4.40",
     "pyyaml>=6.0",
 ]
+api = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "python-multipart>=0.0.9",
+]
 
 [project.scripts]
 dyla-match = "dyla_match.cli:main"

@@ -107,10 +107,15 @@ best-measured configuration in the repo.
 ### Phase 6: demo + deployment
 - [x] Requirements written down in `docs/PLAN.md` before any code — stack recommendation (Next.js on
       Vercel + FastAPI on Render), design brief, API contract draft, cost flag on Render's paid tier
-- [ ] Confirm stack/design with me before building
-- [ ] FastAPI backend wrapping the matcher
-- [ ] Next.js frontend, premium jewellery-appropriate design
-- [ ] Deploy both, verify end-to-end on the live URL
+- [x] FastAPI backend (`backend/main.py`) wrapping the matcher — `/health`, `/match`, `/catalogue-image`
+      (path-traversal-safe). Tested locally end-to-end against real photos, correct top-1 results.
+- [x] Next.js frontend (`frontend/`) — upload/drop UI, ivory/cream/champagne palette, serif+sans
+      pairing, results grid with confidence bars. Builds clean (`npm run build`), dev server verified
+      serving the right content; not yet visually checked in a real browser (the browser automation
+      tool wasn't responding this session — worth a manual look before deploying).
+- [ ] Deploy backend to Render (`render.yaml` ready; needs my Render account + confirming the paid tier)
+- [ ] Deploy frontend to Vercel (CLI already authenticated as me; not yet run)
+- [ ] Verify end-to-end on the live URLs once both are up
 
 ### Phase 7: submission
 - [x] `DECISIONS.md` ≤ 2 pages — filled in with real numbers, including the kada 0%-recall finding

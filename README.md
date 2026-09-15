@@ -86,3 +86,26 @@ Everything in `configs/default.yaml` is swappable without touching code: backbon
 crop preprocessing on/off, top-k, device. `configs/*_crop.yaml` and `configs/clip.yaml` are the variants
 actually measured against each other in `eval/report*.md` — crop measured worse for both backbones and
 is off by default; plain whole-image CLIP is what ships.
+
+## Web demo (backend + frontend)
+
+A FastAPI backend (`backend/`) wraps the same matcher this README's quickstart uses, and a Next.js
+frontend (`frontend/`) provides the upload UI. Both are separate from the core matcher/eval code above —
+neither is required to run the CLI or the harness.
+
+```bash
+# Backend (from the repo root, after the Quickstart steps above have built data/index/)
+.venv/bin/python -m uvicorn backend.main:app --port 8000
+# needs: uv pip install -e ".[api]" --python .venv/bin/python   (once)
+
+# Frontend (separate terminal)
+cd frontend
+npm install        # once
+cp .env.example .env.local   # points it at http://localhost:8000 by default
+npm run dev
+```
+
+Open `http://localhost:3000`, drop in a phone photo, see the top-5 matches. Deployment target: FastAPI
+on Render (`backend/Dockerfile`, `render.yaml` — see the cost note in `render.yaml` before deploying,
+CLIP+torch need a paid tier) and the frontend on Vercel. Design brief and full reasoning in
+`docs/PLAN.md`, "Phase 6: demo + deployment."

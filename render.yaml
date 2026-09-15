@@ -1,0 +1,20 @@
+# Render Blueprint for the FastAPI backend (backend/Dockerfile).
+# Deploy: connect this repo in the Render dashboard -> "New +" -> "Blueprint" -> picks this file up.
+#
+# Cost note (flagged in docs/PLAN.md before this file was written): CLIP + torch + FAISS need more
+# than the free tier's ~512MB RAM and don't tolerate the free tier's spin-down-when-idle behavior well
+# (a cold request would have to reload the model). "starter" below is Render's smallest paid tier with
+# enough headroom; confirm the plan before deploying, this is a real recurring cost.
+services:
+  - type: web
+    name: dyla-stump-the-model-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    plan: starter
+    envVars:
+      - key: CORS_ORIGINS
+        value: "*"   # tighten to the deployed frontend's exact origin once it has a URL
+      - key: KMP_DUPLICATE_LIB_OK
+        value: "TRUE"
+    healthCheckPath: /health
