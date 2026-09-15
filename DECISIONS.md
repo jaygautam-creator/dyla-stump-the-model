@@ -87,7 +87,14 @@ The self-sourced items' "catalogue" photo *is* a home phone photo, shot on the s
 query — their background matches by construction. The kada's real catalogue photo is a studio shot on
 white, a genuinely different domain. The 100%/96.4% self-sourced numbers are partly background match,
 not pure SKU discrimination; the kada's 0% is as much a domain gap as a plain-jewellery-similarity
-problem. Nothing tried fixes either — a real fix needs to remove the background, not crop around it.
+problem. 
+
+**Empirical test (scripts/diagnose_kada_domain.py):** We tested U2Net background segmentation and white
+compositing. Removing the tabletop background immediately knocks the false `own-gold-ring` match out of
+the top 5, shifting top retrieval to genuine bangles and kadas (`Silver Gabru Kada` at #2, score 0.755).
+However, the exact Swashaa SKU still surfaces in the 30s (~0.70 score) — proving that while segmentation
+solves the tabletop confounder, global CLIP embeddings of featureless circular bands still require local
+keypoint verification (clasps/grooves) to separate same-category SKUs.
 
 Worst condition: `reflection` (62.5%, n=16). Best: `low_light` (100%, n=10) — these shots are dim but
 sharp and well-composed, which barely perturbs CLIP.
