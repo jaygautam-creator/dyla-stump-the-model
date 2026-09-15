@@ -57,6 +57,19 @@ def load_matcher() -> None:
     _state["config"] = config
 
 
+@app.get("/")
+def root():
+    # Bare API root with no handler returns FastAPI's generic 404, which looks broken to anyone who
+    # visits the backend URL directly rather than through the frontend -- a friendly landing message
+    # is cheap and avoids that "is this thing on?" moment.
+    return {
+        "service": "Dyla Stump the Model API",
+        "docs": "/docs",
+        "health": "/health",
+        "match": "POST /match (multipart image upload)",
+    }
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "backbone": _state.get("config", {}).get("backbone")}

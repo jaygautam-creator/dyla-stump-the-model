@@ -15,7 +15,6 @@ COPY data/catalogue/products.csv ./data/catalogue/products.csv
 # Self-sourced items have no image_source_url (nothing to scrape them from) and are committed instead --
 # scripts/hydrate_catalogue_images.py can't fetch these, they must be copied directly.
 COPY data/catalogue/images/own_*.jpg ./data/catalogue/images/
-COPY backend/ ./backend/
 
 # torch's default PyPI wheel pulls in full CUDA/cuDNN dependencies (several GB) even on a CPU-only
 # machine with no GPU -- install the CPU-only build from PyTorch's own index first so pip's resolver
@@ -28,6 +27,10 @@ RUN pip install --no-cache-dir -e ".[ml,api]"
 ENV KMP_DUPLICATE_LIB_OK=TRUE
 RUN python -m scripts.hydrate_catalogue_images && \
     python -m dyla_match.cli build-index --config configs/default.yaml
+
+# backend/ copied last, deliberately -- an API code change shouldn't invalidate the cache for the
+# expensive steps above (pip install, catalogue hydration, CLIP embedding of 7,272 images).
+COPY backend/ ./backend/
 
 ENV CORS_ORIGINS="*"
 EXPOSE 8000
