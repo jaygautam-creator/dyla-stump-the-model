@@ -422,3 +422,16 @@ Format:
   background, which would have surprised anyone relying on push-to-deploy going forward. Caught because
   the failure emails a person, not because I was checking for it -- worth remembering to verify the
   Git-triggered path specifically, not just a manual CLI deploy, next time.
+
+## 2026-09-15: Caught DECISIONS.md over the brief's 2-page limit, trimmed it
+- Source: mine (asked whether everything was done per the brief's requirements)
+- What happened: DECISIONS.md had grown to ~1,900 words (~3.4 pages) — every honest correction through
+  the session (crop bugs found and fixed, the rerank double-crop bug, the background-confound diagnosis)
+  got appended without ever trimming the document back down, and I never re-checked its length against
+  the brief's explicit "≤2 pages" requirement until asked directly whether everything was done.
+- Fixed: cut to ~1,013 words (~1.8 pages). Kept every number, the kada finding, the background-RGB
+  table, and all rejected approaches; cut the blow-by-blow narrative of how each bug was found (that
+  detail stays in this log, in full, above) since DECISIONS.md's job is the summary, not the story.
+- Why it matters: a hard, explicit requirement from the brief was quietly violated by accretion, and
+  wouldn't have been caught without being asked to verify completeness directly rather than assuming
+  the work already done was still compliant.

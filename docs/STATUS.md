@@ -146,12 +146,17 @@ best-measured configuration in the repo.
       responding this session; worth the project owner taking a look themselves
 
 ### Phase 7: submission
-- [x] `DECISIONS.md` ≤ 2 pages — filled in with real numbers, including the kada 0%-recall finding
-- [x] README tested on a clean machine (< 5 min) — quickstart commands run end-to-end as written
-- [ ] Export all logs — last session's export was blocked by a macOS Desktop-folder permission lockout
-      (Terminal's Files-and-Folders access got revoked mid-session, see session history below); re-run
-      pending
-- [ ] Share the private repo, email careers@thuli.studio
+- [x] `DECISIONS.md` ≤ 2 pages — had drifted to ~1,900 words (~3.4 pages) from repeated honest
+      corrections through the session without ever trimming back; caught and cut to ~1,013 words
+      (~1.8 pages), 2026-09-15, all the substantive numbers and findings kept
+- [x] README tested on a clean machine (< 5 min) — quickstart commands run end-to-end as written;
+      rewritten for a confident, plain-English tone per instruction
+- [x] Code committed and pushed: matcher, stumper harness, backend, frontend, all deployment tooling
+- [x] Logs exported and current (re-run after every substantive change this session)
+- [x] Deployed live: frontend + backend both reachable and verified working over HTTPS
+- [ ] **Mine:** share the private repo with the team — need to know who to add (GitHub usernames/emails)
+- [ ] **Mine:** email careers@thuli.studio with LinkedIn + a short blurb — content and sending are mine,
+      not something to draft or send without being asked
 
 ## Session history
 
