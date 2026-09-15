@@ -1,19 +1,24 @@
 # Status
 
 **Last updated:** 2026-09-15
-**Current phase:** Phase 5 done and measured. Photo count is past the brief's 100-photo minimum (58 real +
-45 synthetic, reported separately everywhere). CLIP is the measured winner over DINOv2 and is now the
-default backbone; crop-to-object preprocessing is on by default (small, mixed effect, not a clean win).
-Ensemble tried and rejected with a number. **Real finding, not yet fixed:** the one item that's a genuine
-external catalogue match (the Swashaa kada) scores 0% top-1 recall in every configuration tried — the
-75.9% headline number is carried entirely by the two self-sourced items. Full detail in `DECISIONS.md`.
+**Current phase:** Phase 5 done and measured, submission code/docs pushed to GitHub. Photo count is past
+the brief's 100-photo minimum (58 real + 45 synthetic, reported separately everywhere). CLIP is the
+measured winner over DINOv2. **Every Phase 5 improvement tried (crop-to-object, twice; equal-weight
+ensemble; verification re-rank) measured worse than the Phase 4 baseline and was rejected** — the shipped
+matcher is plain whole-image CLIP cosine retrieval, no preprocessing, no re-ranking. **Real finding, still
+unfixed:** the one item that's a genuine external catalogue match (the Swashaa kada) scores 0% top-1
+recall in every configuration tried, including the rejected fixes. The 75.9% headline number is carried
+entirely by the two self-sourced items. Full detail in `DECISIONS.md`.
+
+Now building toward: a deployed web demo (not yet started — requirements captured in `docs/PLAN.md`
+"Phase 6", stack recommendation is Next.js on Vercel + FastAPI on Render, not yet confirmed by me).
 
 ## Next step
 
-Mine: decide whether to spend more time chasing the kada failure (Next-two-weeks item 1/4 in
-`DECISIONS.md`) or move to submission packaging (README is done and tested; logs export re-run after
-last session's permission lockout; DECISIONS.md and STATUS.md current). If moving to submission: private
-repo + share with the team, email careers@thuli.studio.
+Mine: confirm or redirect the Phase 6 stack/design recommendation in `docs/PLAN.md`, then say go on
+building the FastAPI backend + Next.js frontend. Separately open: whether to spend more time chasing the
+kada failure with a *real* verification method (Next-two-weeks item 1 in `DECISIONS.md`) before or after
+the demo — my call.
 
 ## Decisions (settled — see `DECISION_LOG.md` for full reasoning)
 
@@ -81,16 +86,33 @@ repo + share with the team, email careers@thuli.studio.
 
 ### Phase 5: improvements, each measured
 - [x] Crop vs whole image — `src/dyla_match/preprocess.py`, corner-background-subtraction heuristic
-      (no object detector, 8GB RAM budget). Small, mixed effect on real photos (trades accuracy between
-      items rather than a clean win); kept on by default since it's free and slightly positive blended.
-      `eval/report_dinov2_crop.md`, `eval/report_clip_crop.md`.
-- [x] Verification re-rank — tried equal-weight CLIP+DINOv2 score fusion instead (`eval/run_ensemble.py`).
-      Measured worse than CLIP alone (55.2% vs 75.9%) — rejected, DINOv2's weaker signal drags it down.
-      A real keypoint/template verification re-rank is still open, see `DECISIONS.md` next-two-weeks.
+      (no object detector, 8GB RAM budget). Measured twice (naive bbox, then a more robust "largest
+      dense run" bbox after finding a real bug in the first version). Both hurt real-photo accuracy;
+      the more correct version hurt more (CLIP 75.9%→51.7%, DINOv2 46.6%→31.0%). **Rejected, off by
+      default.** `eval/report_dinov2_crop.md`, `eval/report_clip_crop.md`.
+- [x] Ensemble — equal-weight CLIP+DINOv2 score fusion (`eval/run_ensemble.py`). Measured worse than
+      CLIP alone (55.2% vs 75.9%) — rejected, DINOv2's weaker signal drags it down.
+- [x] Verification re-rank for the kada failure — wider candidate pool + tighter-crop-embedding fusion
+      (`src/dyla_match/rerank.py`, `eval/run_rerank.py`). Measured worse across the board (real top-1
+      31.0% vs 75.9% baseline) and did not fix the kada (still 0% recall) — rejected. A real local-feature
+      verification method (not a second whole-crop embedding) is still open, see `DECISIONS.md`
+      next-two-weeks item 1.
 - [ ] Calibrated refusal vs cosine threshold — not built; needs a not-in-catalogue negative class, and
       none exists at zero budget (documented, not fabricated).
 
-### Phase 6: submission
+**Net result of Phase 5: every improvement tried measured worse than the Phase 4 baseline.**
+`configs/default.yaml` ships plain whole-image CLIP, no preprocessing, no re-ranking — still the
+best-measured configuration in the repo.
+
+### Phase 6: demo + deployment
+- [x] Requirements written down in `docs/PLAN.md` before any code — stack recommendation (Next.js on
+      Vercel + FastAPI on Render), design brief, API contract draft, cost flag on Render's paid tier
+- [ ] Confirm stack/design with me before building
+- [ ] FastAPI backend wrapping the matcher
+- [ ] Next.js frontend, premium jewellery-appropriate design
+- [ ] Deploy both, verify end-to-end on the live URL
+
+### Phase 7: submission
 - [x] `DECISIONS.md` ≤ 2 pages — filled in with real numbers, including the kada 0%-recall finding
 - [x] README tested on a clean machine (< 5 min) — quickstart commands run end-to-end as written
 - [ ] Export all logs — last session's export was blocked by a macOS Desktop-folder permission lockout
@@ -183,3 +205,16 @@ repo + share with the team, email careers@thuli.studio.
   `DECISIONS.md` rather than leaving it in the aggregate. Also wrote `scripts/hydrate_catalogue_images.py`
   (rebuilds the gitignored catalogue images from URLs already in `products.csv`, via a thread pool, so the
   README's <5-minute clean-machine claim is achievable) and a real README with tested quickstart commands.
+- 2026-09-15 (continued): Tried a verification re-rank to fix the kada 0%-recall failure specifically.
+  Diagnostic found the true SKU does exist in the embedding space (unique-product rank ~40-70, not
+  missing), just consistently out-ranked by generic gold jewellery. Built a wider-candidate-pool +
+  tighter-crop-fusion re-rank; while building it, found and fixed a real bug in the crop heuristic itself
+  (naive min/max bbox blown out by scattered background noise on some photos). Re-measuring crop with the
+  bug fixed reversed the earlier "small mixed effect, kept on" call from the same day: the more correct
+  crop hurts clearly (CLIP 75.9%→51.7%, DINOv2 46.6%→31.0%). Both crop and the full re-rank (31.0%,
+  kada still 0%) are now rejected; `configs/default.yaml` reverted to plain whole-image CLIP, the
+  actual best-measured config. `DECISIONS.md`, `docs/DECISION_LOG.md`, and this file corrected to match
+  rather than left stale. Also wrote Phase 6 (demo + deployment) requirements into `docs/PLAN.md` per
+  instruction, before writing any UI code: Next.js/Vercel + FastAPI/Render recommended, premium
+  jewellery-aesthetic design brief captured, Render cost flagged as a real recurring expense to confirm
+  before provisioning. Not yet built or deployed — waiting on go-ahead.

@@ -8,10 +8,12 @@ Built for the Thuli Studios (Dyla) take-home, Problem 2. CPU/MPS only — tested
 
 ## Result, in one line
 
-CLIP (`openai/clip-vit-base-patch32`) with a crop-to-object preprocessing step, whole-image cosine
-retrieval over a 7,272-image scraped catalogue: **75.9% top-1 SKU accuracy** on 58 real hard phone photos
-of 3 items genuinely in the catalogue (Wilson 95% CI [63.5%, 85.0%]). Full breakdown, rejected approaches,
-and where it fails: `DECISIONS.md` and `eval/report_clip_crop.md`.
+CLIP (`openai/clip-vit-base-patch32`), plain whole-image cosine retrieval, no crop/re-rank/ensemble —
+every one of those was tried and measured worse (see `DECISIONS.md`) — over a 7,272-image scraped
+catalogue: **75.9% top-1 SKU accuracy** on 58 real hard phone photos of 3 items genuinely in the
+catalogue (Wilson 95% CI [63.5%, 85.0%]). That number hides an important weakness: the one item that's a
+genuine external catalogue match scores 0%. Full breakdown, rejected approaches, and where it fails:
+`DECISIONS.md` and `eval/report_clip.md`.
 
 ## Quickstart (under 5 minutes on a clean machine)
 
@@ -40,7 +42,7 @@ Expected output: top-5 candidate products with cosine scores, and the own-catalo
 ## Evaluate on the hard-photo set
 
 ```bash
-python -m eval.harness --config configs/default.yaml --out eval/report_clip_crop.md
+python -m eval.harness --config configs/default.yaml --out eval/report_clip.md
 ```
 
 Reads `data/stumper/labels.csv` + `data/stumper/photos/`, runs every labelled photo through the matcher,
@@ -59,7 +61,7 @@ combination that was actually measured.
 | `docs/STATUS.md` | Current phase, open decisions, session history |
 | `docs/DECISION_LOG.md` | Every decision, with reasoning and who made the call |
 | `DECISIONS.md` | The ≤2-page write-up: architecture, trade-offs, where it breaks, next 2 weeks |
-| `src/dyla_match/` | Embedding (`embed.py`), FAISS index (`index.py`), crop preprocessing (`preprocess.py`), matcher (`matcher.py`), CLI (`cli.py`), catalogue scraper (`catalogue/`) |
+| `src/dyla_match/` | Embedding (`embed.py`), FAISS index (`index.py`), crop preprocessing (`preprocess.py`, tried and rejected — off by default), verification re-rank (`rerank.py`, tried and rejected), matcher (`matcher.py`), CLI (`cli.py`), catalogue scraper (`catalogue/`) |
 | `eval/` | Metrics (`metrics.py`), harness (`harness.py`), ensemble experiment (`run_ensemble.py`), reports |
 | `scripts/hydrate_catalogue_images.py` | Rebuilds `data/catalogue/images/` from committed metadata |
 | `scripts/augment_stumper.py` | Pads the stumper set with tagged synthetic transforms (see below) |
@@ -81,5 +83,6 @@ Trust the "real phone photos only" section of each report; the "blended" section
 ## Config
 
 Everything in `configs/default.yaml` is swappable without touching code: backbone (`dinov2`/`clip`),
-crop preprocessing on/off, top-k, device. `configs/*_crop.yaml` and `configs/clip.yaml` are the
-variants actually measured against each other in `eval/report*.md`.
+crop preprocessing on/off, top-k, device. `configs/*_crop.yaml` and `configs/clip.yaml` are the variants
+actually measured against each other in `eval/report*.md` — crop measured worse for both backbones and
+is off by default; plain whole-image CLIP is what ships.

@@ -25,13 +25,14 @@ catalogue:
   dir: data/catalogue
   csv: data/catalogue/products.csv
 
-# Phase 5: crop to the foreground object before embedding (src/dyla_match/preprocess.py), addressing
-# the whole-image weakness PLAN.md predicted and Phase 4 diagnosed directly (the kadda's own clean
-# photo didn't rank in the catalogue's top 30 uncropped). Measured, not assumed: see
-# eval/report_dinov2_crop.md and eval/report_clip_crop.md next to the uncropped reports. On the real
-# 58-photo set it's neutral-to-slightly-positive per condition and doesn't hurt, so it stays on.
+# Phase 5: crop-to-object preprocessing (src/dyla_match/preprocess.py) was tried to address the
+# whole-image weakness PLAN.md predicted. Measured twice (a naive min/max bounding box, then a more
+# robust "largest dense run" version after the first version was found buggy) and BOTH versions hurt
+# real-photo accuracy rather than helping -- the more correct/aggressive crop hurt more (CLIP 75.9% ->
+# 51.7% top-1 SKU). Rejected; off by default. See eval/report_clip_crop.md / report_dinov2_crop.md for
+# the numbers and docs/DECISION_LOG.md (2026-09-15) for the full story.
 preprocess:
-  object_crop: true
+  object_crop: false
 
 index:
-  dir: data/index_crop
+  dir: data/index

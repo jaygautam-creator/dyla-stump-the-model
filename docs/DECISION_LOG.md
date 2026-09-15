@@ -216,3 +216,59 @@ Format:
   rather than left inside the aggregate, per the "measure don't assume, name weaknesses openly" rule.
 - Revisit if: a verification re-rank stage or more kada photos change this — currently open as
   next-two-weeks item 1 and 4 in `DECISIONS.md`.
+
+## 2026-09-15: D4 (interface) superseded — full web demo + deployment now wanted
+- Source: mine — explicit instruction to build a deployed web demo before final submission
+- Previous choice (D4, 2026-09-14): CLI only for the core, small demo only if time remained
+- New choice: build a full web demo (upload a photo, see top-5 matches) with a premium,
+  jewellery-appropriate look, and deploy it publicly (platform TBD between Vercel/Render/Cloudflare —
+  Claude to recommend, I decide). Requirements captured in `docs/PLAN.md` "Phase 6: demo + deployment"
+  before any UI code is written, so nothing here is guessed at build time.
+- Sequencing, my instruction: model accuracy work first (kada verification re-rank), demo requirements
+  written down second, UI build and deploy last — in that order, not started until I say so for the
+  later steps.
+- Revisit if: the deployment cost/complexity turns out not worth it for a take-home submission — this
+  is additional scope beyond the brief's minimum ask, done because I asked for it, not because the
+  brief requires it.
+
+## 2026-09-15: Verification re-rank tried for the kada failure — measured worse, rejected
+- Source: mine ("try the kada verification re-rank fix")
+- What was built: `src/dyla_match/rerank.py` — widen the first-stage candidate pool (unique products up
+  to 75, informed by a diagnostic showing the kada's true SKU at unique-product rank 43 in one photo,
+  disclosed as such), then re-embed a tighter crop of the query and each candidate's best image, fusing
+  that second score with the original at a fixed a-priori 0.5/0.5 weight. Also fixed a real bug in
+  `object_crop` along the way: a naive min/max bounding box over foreground pixels was blown out to
+  nearly the full frame by scattered background noise (shadows/specks) on some photos; replaced with a
+  1-D "largest contiguous dense run" per axis, which is what made the tighter query crop actually tight.
+- Measured once against the full frozen stumper set (`eval/report_rerank.md`), not iterated further
+  against the result: **top-1 SKU accuracy on real photos dropped from 75.9% (CLIP+crop) to 31.0%.** The
+  kada still scores 0% recall — unfixed — while chain recall fell from 100% to 35.3% and ring from 96.4%
+  to 42.9%.
+- Why it failed: the tighter catalogue-image crop is noisy — spot-checked one candidate crop directly and
+  it collapsed to a 41×306-pixel sliver, not a representative view of the item. A noisy second signal
+  fused with a wider, noisier candidate pool made the ranking worse across the board, not just for the
+  kada.
+- Rejected. `configs/default.yaml` stays on CLIP + crop (no re-rank) — the config that actually measures
+  best. `eval/run_rerank.py` and `src/dyla_match/rerank.py` are kept in the repo as a documented, honestly
+  labelled failed experiment, not wired into the default matcher path.
+- Revisit if: a more reliable tight-crop/verification signal is found — e.g. a real local-feature matcher
+  instead of a second whole-crop embedding — this is exactly `docs/PLAN.md`'s original "verify" stage
+  (SuperPoint/LightGlue or patch mutual-nearest-neighbours), which this simpler attempt was a cheaper
+  stand-in for and evidently isn't a substitute for.
+
+## 2026-09-15: Crop-to-object preprocessing rejected (corrects same-day earlier entry)
+- Source: mine (asked to push accuracy further); found while building the verification re-rank
+- What happened: fixing a real bug in `object_crop` (naive min/max bbox blown out by scattered
+  background noise, replaced with a "largest dense run" per axis -- see the rerank entry above) changed
+  what the crop preprocessing actually does, so `eval/report_dinov2_crop.md` and `eval/report_clip_crop.md`
+  were regenerated. New numbers: CLIP+crop real top-1 SKU **75.9% -> 51.7%**, DINOv2+crop **46.6% -> 31.0%**.
+  The earlier same-day decision log entry ("kept crop on, small mixed effect") was correct for the buggy
+  crop version and is now superseded -- the more correct crop hurts more, not less.
+- Choice: crop-to-object preprocessing rejected entirely. `configs/default.yaml` reverted to
+  `preprocess.object_crop: false` and `index.dir: data/index` (the plain, uncropped catalogue index) --
+  i.e. back to the Phase 4 whole-image CLIP config, which remains the best-measured setup at 75.9%.
+- Why it matters: this is the second time a "should help" preprocessing idea (per `docs/PLAN.md`'s
+  predicted whole-image weakness) measured worse in practice on this specific catalogue/photo set.
+  Whole-image cosine similarity over uncropped photos is, so far, still the best of everything tried.
+- Revisit if: a proper object detector (rather than background-subtraction heuristics) is used instead --
+  named as next-two-weeks item 3 in `DECISIONS.md`.

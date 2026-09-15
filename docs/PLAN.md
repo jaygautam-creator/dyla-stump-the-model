@@ -3,6 +3,40 @@
 Drafted 2026-09-14. Some choices are still open (see `STATUS.md`). Any change goes into `DECISION_LOG.md`
 with the reason.
 
+## Phase 6: demo + deployment (added 2026-09-15, supersedes D4)
+
+Written down before any UI code exists, per instruction — nothing here should be guessed later.
+
+**Sequencing (my instruction, 2026-09-15):** model accuracy work first, this plan second, build/deploy
+last — not started until told to.
+
+**Recommended stack** (Claude's recommendation; final call is mine):
+- **Backend:** FastAPI wrapping the existing `Matcher`/`verify_rerank` pipeline, deployed on **Render**
+  as a persistent web service (not a serverless function). Reasoning: CLIP + torch + FAISS + the crop/
+  rerank logic need a warm, in-memory model and a real filesystem for the catalogue index — a poor fit
+  for Vercel/Cloudflare's serverless function limits (bundle size, cold-start, execution time). Render
+  runs a normal long-lived process, so the model loads once and stays warm.
+  - **Cost flag:** Render's free web-service tier (≈512MB RAM, spins down when idle) is very likely too
+    small for CLIP + torch loaded in memory, and spin-down means a slow first request after idle time.
+    A paid instance (roughly $7–25/month depending on tier) is the realistic option — flagging this now
+    since it's a real recurring cost, not a one-time thing, before anything gets provisioned.
+- **Frontend:** Next.js on **Vercel** — Vercel is built for this, free tier is generous for a low-traffic
+  demo, and it's the natural place for the "modern, premium, jewellery-aesthetic" UI itself.
+- **API contract (draft):** `POST /match` with a multipart image upload → JSON `{results: [{vendor,
+  product_id, title, score, image_url}], timings}`. Backend serves catalogue thumbnails directly (they're
+  already resized to ≤512px) so the frontend never needs its own copy of the 180MB catalogue.
+
+**Design brief for the frontend** (from instruction, 2026-09-15): modern, aesthetic, premium feel; light,
+jewellery-appropriate palette (warm ivory/cream/blush neutrals, soft gold/champagne accents — not a
+generic SaaS-blue dashboard); a bit of restrained modern elegance rather than maximalist. Core flow:
+upload/drop a phone photo → loading state → top-5 results as photo cards with product image, title,
+vendor, and confidence, ranked by score. Should read as a boutique product-recognition tool, not a
+raw ML demo.
+
+**Open decisions still mine to make when we get here:** exact Render plan/tier (cost vs RAM headroom),
+whether the frontend also shows the "not in catalogue" / low-confidence case explicitly, whether to
+password-gate the deployed demo (it's a take-home submission, not meant for public traffic).
+
 ## What I'm aiming for
 
 1. The core, working from a clean checkout.
